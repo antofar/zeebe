@@ -17,8 +17,6 @@
  */
 package io.zeebe.broker.clustering.base.topology;
 
-import java.util.*;
-
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.base.topology.TopologyDto.BrokerDto;
 import io.zeebe.raft.state.RaftState;
@@ -28,11 +26,15 @@ import org.agrona.DirectBuffer;
 import org.agrona.collections.Int2ObjectHashMap;
 import org.slf4j.Logger;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+
 /**
  * Represents this node's view of the cluster. Includes
  * info about known nodes as well as partitions and their current distribution to nodes.
  */
-public class Topology
+public class Topology implements ReadableTopology
 {
     private static final Logger LOG = Loggers.CLUSTERING_LOGGER;
 
@@ -112,7 +114,7 @@ public class Topology
     {
         LOG.debug("Removing {} from list of known members", member);
 
-        for (PartitionInfo partition : member.follower)
+        for (PartitionInfo partition : member.getFollower())
         {
             final List<NodeInfo> followers = partitionFollowers.get(partition.getPartitionId());
 
@@ -122,7 +124,7 @@ public class Topology
             }
         }
 
-        for (PartitionInfo partition : member.leader)
+        for (PartitionInfo partition : member.getLeader())
         {
             partitionLeaders.remove(partition.getPartitionId());
         }
@@ -140,8 +142,8 @@ public class Topology
 
         LOG.debug("Removing {} list of known partitions", partition);
 
-        memberInfo.leader.remove(partition);
-        memberInfo.follower.remove(partition);
+        memberInfo.getLeader().remove(partition);
+        memberInfo.getFollower().remove(partition);
 
         final List<NodeInfo> followers = partitionFollowers.get(partitionId);
         if (followers != null)
@@ -178,11 +180,11 @@ public class Topology
                 }
                 partitionLeaders.put(paritionId, member);
 
-                member.follower.remove(partition);
+                member.getFollower().remove(partition);
 
-                if (!member.leader.contains(partition))
+                if (!member.getLeader().contains(partition))
                 {
-                    member.leader.add(partition);
+                    member.getLeader().add(partition);
                 }
                 break;
 
@@ -201,11 +203,11 @@ public class Topology
                     followers.add(member);
                 }
 
-                member.leader.remove(partition);
+                member.getLeader().remove(partition);
 
-                if (!member.follower.contains(partition))
+                if (!member.getFollower().contains(partition))
                 {
-                    member.follower.add(partition);
+                    member.getFollower().add(partition);
                 }
                 break;
 
@@ -256,132 +258,4 @@ public class Topology
         return dto;
     }
 
-    public static class NodeInfo
-    {
-        private final SocketAddress apiPort;
-        private final SocketAddress managementPort;
-        private final SocketAddress replicationPort;
-
-        private final List<PartitionInfo> leader = new ArrayList<>();
-        private final List<PartitionInfo> follower = new ArrayList<>();
-
-        public NodeInfo(SocketAddress apiPort,
-            SocketAddress managementPort,
-            SocketAddress replicationPort)
-        {
-            this.apiPort = apiPort;
-            this.managementPort = managementPort;
-            this.replicationPort = replicationPort;
-        }
-
-        public SocketAddress getApiPort()
-        {
-            return apiPort;
-        }
-
-        public SocketAddress getManagementPort()
-        {
-            return managementPort;
-        }
-
-        public SocketAddress getReplicationPort()
-        {
-            return replicationPort;
-        }
-
-        public List<PartitionInfo> getLeader()
-        {
-            return leader;
-        }
-
-        public List<PartitionInfo> getFollower()
-        {
-            return follower;
-        }
-
-        @Override
-        public String toString()
-        {
-            return String.format("Node{clientApi=%s, managementApi=%s, replicationApi=%s}", apiPort, managementPort, replicationPort);
-        }
-
-        @Override
-        public int hashCode()
-        {
-            final int prime = 31;
-            int result = 1;
-            result = prime * result + ((apiPort == null) ? 0 : apiPort.hashCode());
-            return result;
-        }
-
-        @Override
-        public boolean equals(Object obj)
-        {
-            if (this == obj)
-            {
-                return true;
-            }
-            if (obj == null)
-            {
-                return false;
-            }
-            if (getClass() != obj.getClass())
-            {
-                return false;
-            }
-            final NodeInfo other = (NodeInfo) obj;
-            if (apiPort == null)
-            {
-                if (other.apiPort != null)
-                {
-                    return false;
-                }
-            }
-            else if (!apiPort.equals(other.apiPort))
-            {
-                return false;
-            }
-            return true;
-        }
-    }
-
-    public static class PartitionInfo
-    {
-        private final DirectBuffer topicName;
-        private final int paritionId;
-        private final int replicationFactor;
-
-        public PartitionInfo(DirectBuffer topicName, int paritionId, int replicationFactor)
-        {
-            this.topicName = topicName;
-            this.paritionId = paritionId;
-            this.replicationFactor = replicationFactor;
-        }
-
-        public DirectBuffer getTopicName()
-        {
-            return topicName;
-        }
-
-        public String getTopicNameAsString()
-        {
-            return BufferUtil.bufferAsString(topicName);
-        }
-
-        public int getPartitionId()
-        {
-            return paritionId;
-        }
-
-        public int getReplicationFactor()
-        {
-            return replicationFactor;
-        }
-
-        @Override
-        public String toString()
-        {
-            return String.format("Partition{topic=%s, partitionId=%d, replicationFactor=%d}", getTopicNameAsString(), paritionId, replicationFactor);
-        }
-    }
 }

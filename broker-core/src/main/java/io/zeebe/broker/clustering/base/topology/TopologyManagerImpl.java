@@ -25,8 +25,6 @@ import java.util.function.Function;
 
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.base.partitions.Partition;
-import io.zeebe.broker.clustering.base.topology.Topology.NodeInfo;
-import io.zeebe.broker.clustering.base.topology.Topology.PartitionInfo;
 import io.zeebe.gossip.*;
 import io.zeebe.gossip.dissemination.GossipSyncRequest;
 import io.zeebe.gossip.membership.Member;

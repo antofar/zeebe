@@ -17,7 +17,6 @@
  */
 package io.zeebe.broker.clustering.base.topology;
 
-import io.zeebe.broker.clustering.base.topology.Topology.NodeInfo;
 import io.zeebe.servicecontainer.*;
 
 /**

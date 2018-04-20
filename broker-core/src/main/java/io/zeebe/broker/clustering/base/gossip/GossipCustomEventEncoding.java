@@ -25,8 +25,8 @@ import java.util.List;
 
 import io.zeebe.broker.clustering.base.topology.Topology;
 import io.zeebe.broker.clustering.base.topology.TopologyManagerImpl;
-import io.zeebe.broker.clustering.base.topology.Topology.NodeInfo;
-import io.zeebe.broker.clustering.base.topology.Topology.PartitionInfo;
+import io.zeebe.broker.clustering.base.topology.NodeInfo;
+import io.zeebe.broker.clustering.base.topology.PartitionInfo;
 import io.zeebe.raft.state.RaftState;
 import io.zeebe.transport.SocketAddress;
 import org.agrona.DirectBuffer;

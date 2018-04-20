@@ -17,28 +17,35 @@
  */
 package io.zeebe.broker.clustering;
 
-import static io.zeebe.broker.transport.TransportServiceNames.*;
-
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.api.ManagementApiRequestHandlerService;
-import io.zeebe.broker.clustering.base.bootstrap.*;
+import io.zeebe.broker.clustering.base.bootstrap.BootstrapExpectNodes;
+import io.zeebe.broker.clustering.base.bootstrap.BootstrapLocalPartitions;
+import io.zeebe.broker.clustering.base.bootstrap.BootstrapSystemTopic;
 import io.zeebe.broker.clustering.base.connections.RemoteAddressManager;
 import io.zeebe.broker.clustering.base.gossip.GossipJoinService;
 import io.zeebe.broker.clustering.base.gossip.GossipService;
 import io.zeebe.broker.clustering.base.raft.config.RaftPersistentConfigurationManagerService;
 import io.zeebe.broker.clustering.base.topology.TopologyManagerService;
+import io.zeebe.broker.clustering.orchestration.generation.IdGenerator;
 import io.zeebe.broker.logstreams.cfg.LogStreamsCfg;
-
-import static io.zeebe.broker.clustering.base.ClusterBaseLayerServiceNames.*;
-import static io.zeebe.broker.system.SystemServiceNames.*;
-
-import io.zeebe.broker.system.*;
+import io.zeebe.broker.system.Component;
+import io.zeebe.broker.system.ConfigurationManager;
+import io.zeebe.broker.system.GlobalConfiguration;
+import io.zeebe.broker.system.SystemContext;
 import io.zeebe.broker.transport.TransportServiceNames;
 import io.zeebe.broker.transport.cfg.TransportComponentCfg;
 import io.zeebe.broker.util.BrokerArguments;
 import io.zeebe.servicecontainer.CompositeServiceBuilder;
 import io.zeebe.servicecontainer.ServiceContainer;
 import org.slf4j.Logger;
+
+import static io.zeebe.broker.clustering.base.ClusterBaseLayerServiceNames.*;
+import static io.zeebe.broker.clustering.base.ClusterOrchestrationLayerServiceNames.CLUSTERING_ORCHESTRATION_LAYER;
+import static io.zeebe.broker.clustering.base.ClusterOrchestrationLayerServiceNames.ID_GENERATOR_SERVICE_NAME;
+import static io.zeebe.broker.logstreams.LogStreamServiceNames.STREAM_PROCESSOR_SERVICE_FACTORY;
+import static io.zeebe.broker.system.SystemServiceNames.WORKFLOW_REQUEST_MESSAGE_HANDLER_SERVICE;
+import static io.zeebe.broker.transport.TransportServiceNames.*;
 
 /**
  * Installs the clustering component into the broker.
@@ -58,6 +65,21 @@ public class ClusterComponent implements Component
 
         initClusteringBaseLayer(context, serviceContainer, transportCfg, logsCfg);
         initBootstrapSystemPartition(context, serviceContainer, globalCfg);
+
+        initCLusteringOrchestrationLayer(context, serviceContainer, transportCfg, logsCfg);
+    }
+
+    private void initCLusteringOrchestrationLayer(final SystemContext context, final ServiceContainer serviceContainer, final TransportComponentCfg config, LogStreamsCfg logsCfg)
+    {
+        final CompositeServiceBuilder orchestrationLayerInstall = serviceContainer.createComposite(CLUSTERING_ORCHESTRATION_LAYER);
+
+        final IdGenerator idGeneratorService = new IdGenerator();
+        orchestrationLayerInstall.createService(ID_GENERATOR_SERVICE_NAME, idGeneratorService)
+            .dependency(serverTransport(CLIENT_API_SERVER_NAME), idGeneratorService.getClientApiTransportInjector())
+            .dependency(STREAM_PROCESSOR_SERVICE_FACTORY, idGeneratorService.getStreamProcessorServiceFactoryInjector())
+            .groupReference(LEADER_PARTITION_SYSTEM_GROUP_NAME, idGeneratorService.getSystemLeaderGroupReference())
+            .install();
+
     }
 
     private void initClusteringBaseLayer(final SystemContext context, final ServiceContainer serviceContainer, final TransportComponentCfg config, LogStreamsCfg logsCfg)

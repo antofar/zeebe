@@ -46,8 +46,6 @@ public class DeploymentManager implements Service<DeploymentManager>
 
     private final SystemConfiguration systemConfiguration;
 
-    private ServiceStartContext serviceContext;
-
     private ClientTransport managementClient;
     private ServerTransport clientApiTransport;
     private TopologyManager topologyManager;
@@ -61,7 +59,6 @@ public class DeploymentManager implements Service<DeploymentManager>
     @Override
     public void start(ServiceStartContext startContext)
     {
-        serviceContext = startContext;
         topologyManager = topologyManagerInjector.getValue();
         managementClient = managementClientInjector.getValue();
         clientApiTransport = clientApiTransportInjector.getValue();

@@ -20,7 +20,6 @@ package io.zeebe.broker.clustering.base.topology;
 import static io.zeebe.broker.clustering.base.ClusterBaseLayerServiceNames.LOCAL_NODE;
 
 import io.zeebe.broker.clustering.base.partitions.Partition;
-import io.zeebe.broker.clustering.base.topology.Topology.NodeInfo;
 import io.zeebe.broker.transport.cfg.TransportComponentCfg;
 import io.zeebe.gossip.Gossip;
 import io.zeebe.servicecontainer.*;
