@@ -187,10 +187,14 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
             return currentState;
         });
 
+
         actor.runOnCompletion(resultFuture, (currentState, throwable) ->
         {
+
             if (throwable != null)
             {
+
+                Loggers.CLUSTERING_LOGGER.error("{}", currentState);
                 for (final OrchestrationCommand pendingCommand : pendingCommands)
                 {
                     for (final RemoteAddress remoteAddress  : pendingCommand.getRemoteAddresses())

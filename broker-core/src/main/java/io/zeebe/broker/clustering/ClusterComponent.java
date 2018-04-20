@@ -82,7 +82,7 @@ public class ClusterComponent implements Component
 
         final OrchestrationInstallService orchestrationInstallService = new OrchestrationInstallService();
         orchestrationLayerInstall.createService(ORCHESTRATION_INSTALL_SERVICE_NAME, orchestrationInstallService)
-                                 .groupReference(LEADER_PARTITION_SYSTEM_GROUP_NAME, idGeneratorService.getSystemLeaderGroupReference())
+                                 .groupReference(LEADER_PARTITION_SYSTEM_GROUP_NAME, orchestrationInstallService.getSystemLeaderGroupReference())
                                  .install();
 
         orchestrationLayerInstall.install();

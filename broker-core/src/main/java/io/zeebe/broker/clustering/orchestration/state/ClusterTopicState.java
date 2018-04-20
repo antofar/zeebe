@@ -53,4 +53,13 @@ public class ClusterTopicState
     {
         return topicPartitonReplications.get(topicName);
     }
+
+    @Override
+    public String toString()
+    {
+        return "ClusterTopicState{" +
+            "topicPartitonReplications=" + topicPartitonReplications +
+            ", brokerUsage=" + brokerUsage +
+            '}';
+    }
 }

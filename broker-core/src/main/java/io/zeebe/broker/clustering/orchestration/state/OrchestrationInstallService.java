@@ -42,6 +42,10 @@ public class OrchestrationInstallService implements Service<Void>
         Loggers.CLUSTERING_LOGGER.debug("Installing orchestration service");
     }
 
+    public ServiceGroupReference<Partition> getSystemLeaderGroupReference()
+    {
+        return systemLeaderGroupReference;
+    }
 
     @Override
     public Void get()
