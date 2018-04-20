@@ -51,7 +51,7 @@ public class CreateTopicTest
     protected static final SocketAddress BROKER_MGMT_ADDRESS = new SocketAddress("localhost", 51016);
     public EmbeddedBrokerRule brokerRule = new EmbeddedBrokerRule();
 
-    public ClientApiRule apiRule = new ClientApiRule();
+    public ClientApiRule apiRule = new ClientApiRule(false);
 
     @Rule
     public RuleChain ruleChain = RuleChain.outerRule(brokerRule).around(apiRule);

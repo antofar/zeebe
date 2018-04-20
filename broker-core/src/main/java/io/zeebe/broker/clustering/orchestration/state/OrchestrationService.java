@@ -1,9 +1,11 @@
 package io.zeebe.broker.clustering.orchestration.state;
 
+import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.base.partitions.Partition;
 import io.zeebe.broker.clustering.base.topology.NodeInfo;
 import io.zeebe.broker.clustering.base.topology.PartitionInfo;
 import io.zeebe.broker.clustering.base.topology.TopologyManager;
+import io.zeebe.broker.clustering.orchestration.generation.IdGenerator;
 import io.zeebe.broker.logstreams.processor.*;
 import io.zeebe.broker.system.log.TopicEvent;
 import io.zeebe.broker.system.log.TopicState;
@@ -12,22 +14,29 @@ import io.zeebe.servicecontainer.Injector;
 import io.zeebe.servicecontainer.Service;
 import io.zeebe.servicecontainer.ServiceStartContext;
 import io.zeebe.transport.ClientTransport;
+import io.zeebe.transport.RemoteAddress;
 import io.zeebe.transport.ServerTransport;
+import io.zeebe.transport.SocketAddress;
 import io.zeebe.util.buffer.BufferUtil;
-import io.zeebe.util.sched.Actor;
 import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.ScheduledTimer;
 import io.zeebe.util.sched.future.ActorFuture;
-import org.agrona.DirectBuffer;
+import org.slf4j.Logger;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.function.Supplier;
 
 import static io.zeebe.broker.logstreams.processor.StreamProcessorIds.SYSTEM_CREATE_TOPIC_PROCESSOR_ID;
 
 public class OrchestrationService implements Service<OrchestrationService>, TypedEventProcessor<TopicEvent>
 {
 
+    private static final Logger LOG = Loggers.CLUSTERING_LOGGER;
+
+    private static final Duration PENDING_COMMAND_TIMEOUT = Duration.ofSeconds(15);
+
+    private final Injector<IdGenerator> idGeneratorInjector = new Injector<>();
     private final Injector<TopologyManager> topologyManagerServiceInjector = new Injector<>();
     private final Injector<Partition> leaderSystemPartitionInjector = new Injector<>();
     private final Injector<ClientTransport> managmentClientTransportInjector = new Injector<>();
@@ -42,11 +51,16 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
     private ActorControl actor;
 
 
+    private final Set<OrchestrationCommand> pendingCommands = new HashSet<>();
+    private IdGenerator idGenerator;
+
     @Override
     public void onOpen(TypedStreamProcessor streamProcessor)
     {
         actor = streamProcessor.getActor();
         actor.runAtFixedRate(Duration.ofSeconds(1), this::checkCurrentState);
+
+        LOG.debug("Orchestration service log stream processor open");
     }
 
     @Override
@@ -60,9 +74,9 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
             topicEvent.getPartitions() < 1 ||
             topicEvent.getReplicationFactor() < 1)
         {
+            LOG.warn("Rejecting create topic command: {}", topicEvent);
             topicEvent.setState(TopicState.CREATE_REJECTED);
         }
-
     }
 
     @Override
@@ -98,6 +112,7 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
         {
             final String topicName = BufferUtil.bufferAsString(value.getName());
             state.put(topicName, new TopicInfo(topicName, value.getPartitions(), value.getReplicationFactor()));
+            LOG.debug("Added topic to desired state: {}", value);
         }
     }
 
@@ -108,6 +123,7 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
         topologyManager = topologyManagerServiceInjector.getValue();
         partition = leaderSystemPartitionInjector.getValue();
         managmentClientTransport = managmentClientTransportInjector.getValue();
+        idGenerator = idGeneratorInjector.getValue();
         final StreamProcessorServiceFactory streamProcessorServiceFactory = streamProcessorServiceFactoryInjector.getValue();
 
         final TypedStreamEnvironment typedStreamEnvironment = new TypedStreamEnvironment(partition.getLogStream(), clientApiTransportInjector.getValue().getOutput());
@@ -123,6 +139,8 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
             .processorId(SYSTEM_CREATE_TOPIC_PROCESSOR_ID)
             .processorName("orchestrator")
             .build();
+
+        LOG.debug("Orchestration service starting");
     }
 
     @Override
@@ -133,27 +151,37 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
 
     private void checkCurrentState()
     {
+        final ActorFuture<ClusterTopicState> resultFuture = topologyManager.query(readableTopology -> {
 
-        final ActorFuture<Map<String, Map<Integer, Integer>>> resultFuture = topologyManager.query(readableTopology -> {
-
-            final Map<String, Map<Integer, Integer>> currentState = new HashMap<>();
+            final ClusterTopicState currentState = new ClusterTopicState();
 
 
             final Collection<PartitionInfo> partitions = readableTopology.getPartitions();
-            for (PartitionInfo partitionInfo : partitions)
+            for (final PartitionInfo partitionInfo : partitions)
             {
                 final int partitionId = partitionInfo.getPartitionId();
-                final DirectBuffer topicName = partitionInfo.getTopicName();
+                final String topicName = BufferUtil.bufferAsString(partitionInfo.getTopicName());
 
-                int replication = 0;
+                int replicationCount = 0;
                 final List<NodeInfo> followers = readableTopology.getFollowers(partitionId);
-                replication += followers == null ? 0 : followers.size();
+                if (followers != null)
+                {
+                    replicationCount += followers.size();
+                    for (final NodeInfo follower : followers)
+                    {
+                        currentState.increaseBrokerUsage(follower.getManagementPort());
+                    }
+                }
 
                 final NodeInfo leader = readableTopology.getLeader(partitionId);
-                replication += leader == null ? 0 : 1;
+                if (leader != null)
+                {
+                    replicationCount += 1;
+                    currentState.increaseBrokerUsage(leader.getManagementPort());
+                    currentState.setLeader(topicName, partitionId, leader.getReplicationPort());
+                }
 
-                final Map<Integer, Integer> partitionReplication = currentState.computeIfAbsent(BufferUtil.bufferAsString(topicName), (s) -> new HashMap<>());
-                partitionReplication.put(partitionId, replication);
+                currentState.setReplicationCount(topicName, partitionId, replicationCount);
             }
 
             return currentState;
@@ -163,102 +191,64 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
         {
             if (throwable != null)
             {
-                for (TopicInfo topicInfo : state.values())
+                for (final OrchestrationCommand pendingCommand : pendingCommands)
+                {
+                    for (final RemoteAddress remoteAddress  : pendingCommand.getRemoteAddresses())
+                    {
+                        currentState.increaseBrokerUsage(remoteAddress.getAddress());
+                    }
+                }
+
+                final List<OrchestrationCommand> commands = new ArrayList<>();
+
+                for (final TopicInfo topicInfo : state.values())
                 {
                     final String topicName = topicInfo.getName();
-                    final Map<Integer, Integer> partitionReplication = currentState.get(topicName);
+                    final Map<Integer, ClusterPartitionState> partitionReplication = currentState.getPartitionReplications(topicName);
                     if (partitionReplication != null)
                     {
-                        for (int i = partitionReplication.size(); i < topicInfo.getPartitionCount(); i++)
+                        final int missingPartititons = topicInfo.getPartitionCount() - partitionReplication.size();
+                        if (missingPartititons > 0)
                         {
-                            // create missing partition
-                            new CreatePartitionCommand(topicName, topicInfo.getReplicationFactor());
+                            commands.add(new CreatePartitionCommand(topicName, topicInfo.getReplicationFactor(), missingPartititons, actor, idGenerator));
                         }
 
-                        for (Map.Entry<Integer, Integer> replication : partitionReplication.entrySet())
+                        for (final Map.Entry<Integer, ClusterPartitionState> partitionState : partitionReplication.entrySet())
                         {
-                            // create missing replication
-                            final int diff = topicInfo.getReplicationFactor() - replication.getValue();
-                            new CreateReplicaCommand(diff);
+                            final ClusterPartitionState state = partitionState.getValue();
+                            final int missingMembers = topicInfo.getReplicationFactor() - state.getReplicationCount();
 
-//                            for (int i = replication.getValue(); i < topicInfo.getReplicationFactor(); i++)
-//                            {
-//                                // create missing replication
-//                            }
+                            final SocketAddress leader = state.getLeader();
+                            if (missingMembers > 0 && leader != null)
+                            {
+                                commands.add(new InviteMemberCommand(topicName, partitionState.getKey(), topicInfo.getReplicationFactor(), leader, missingMembers));
+                            }
                         }
                     }
                 }
 
+
+                executeCommands(currentState::nextSocketAddress, commands);
             }
         });
-
-
-//            final List<Request> requests = new ArrayList<>();
-
-//            final Collection<PartitionInfo> partitions = readableTopology.getPartitions();
-//            for (PartitionInfo partitionInfo : partitions)
-//            {
-//                final int partitionId = partitionInfo.getPartitionId();
-//                final DirectBuffer topicName = partitionInfo.getTopicName();
-//
-//                final TopicInfo topicInfo = stateCopy.get(topicName);
-//
-//                int replication = 0;
-//                final List<NodeInfo> followers = readableTopology.getFollowers(partitionId);
-//                replication += followers == null ? 0 : followers.size();
-//
-//                final NodeInfo leader = readableTopology.getLeader(partitionId);
-//                replication += leader == null ? 0 : 1;
-//
-//                // needed replication to reach desired state
-//                if (replication < topicInfo.getReplicationFactor())
-//                {
-//                    // need replication for this partition !
-//                    // create replication request
-//                    requests.add(new Request(partitionId)
-//                    {
-//                        @Override
-//                        public void request()
-//                        {
-//                            // replication request
-//                        }
-//                    });
-//                }
-//
-//                topicInfo.decrementPartitionCount();
-//
-//                if (topicInfo.getPartitionCount() == 0)
-//                {
-//                    stateCopy.remove(BufferUtil.bufferAsString(topicName));
-//                }
-//            }
-//
-//            // for each topic which is still in the map create partition request
-//            for (String topicName : stateCopy.keySet())
-//            {
-//                final TopicInfo info = stateCopy.get(topicName);
-//                while (info.getPartitionCount() != 0)
-//                {
-//                    // id
-//                    requests.add(new Request())
-//                    info.decrementPartitionCount();
-//                }
-//            }
-
-//            return requests;
-//        });
-
-
-
     }
 
-
-    public void updateState(TopicInfo event)
+    private void executeCommands(final Supplier<SocketAddress> socketAddressSupplier, final List<OrchestrationCommand> commands)
     {
-        actor.run(() ->
+
+        for (final OrchestrationCommand command : commands)
         {
-            state.put(event.getName(), event);
-        });
+            if (!pendingCommands.contains(command))
+            {
+                command.execute(managmentClientTransport, socketAddressSupplier);
+                pendingCommands.add(command);
+
+                actor.runDelayed(PENDING_COMMAND_TIMEOUT, () -> {
+                    pendingCommands.remove(command);
+                });
+            }
+        }
+
     }
 
     public Injector<TopologyManager> getTopologyManagerServiceInjector()
@@ -284,5 +274,10 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
     public Injector<StreamProcessorServiceFactory> getStreamProcessorServiceFactoryInjector()
     {
         return streamProcessorServiceFactoryInjector;
+    }
+
+    public Injector<IdGenerator> getIdGeneratorInjector()
+    {
+        return idGeneratorInjector;
     }
 }

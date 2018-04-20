@@ -28,6 +28,7 @@ import io.zeebe.broker.clustering.base.gossip.GossipService;
 import io.zeebe.broker.clustering.base.raft.config.RaftPersistentConfigurationManagerService;
 import io.zeebe.broker.clustering.base.topology.TopologyManagerService;
 import io.zeebe.broker.clustering.orchestration.generation.IdGenerator;
+import io.zeebe.broker.clustering.orchestration.state.OrchestrationInstallService;
 import io.zeebe.broker.logstreams.cfg.LogStreamsCfg;
 import io.zeebe.broker.system.Component;
 import io.zeebe.broker.system.ConfigurationManager;
@@ -41,8 +42,7 @@ import io.zeebe.servicecontainer.ServiceContainer;
 import org.slf4j.Logger;
 
 import static io.zeebe.broker.clustering.base.ClusterBaseLayerServiceNames.*;
-import static io.zeebe.broker.clustering.base.ClusterOrchestrationLayerServiceNames.CLUSTERING_ORCHESTRATION_LAYER;
-import static io.zeebe.broker.clustering.base.ClusterOrchestrationLayerServiceNames.ID_GENERATOR_SERVICE_NAME;
+import static io.zeebe.broker.clustering.base.ClusterOrchestrationLayerServiceNames.*;
 import static io.zeebe.broker.logstreams.LogStreamServiceNames.STREAM_PROCESSOR_SERVICE_FACTORY;
 import static io.zeebe.broker.system.SystemServiceNames.WORKFLOW_REQUEST_MESSAGE_HANDLER_SERVICE;
 import static io.zeebe.broker.transport.TransportServiceNames.*;
@@ -66,10 +66,10 @@ public class ClusterComponent implements Component
         initClusteringBaseLayer(context, serviceContainer, transportCfg, logsCfg);
         initBootstrapSystemPartition(context, serviceContainer, globalCfg);
 
-        initCLusteringOrchestrationLayer(context, serviceContainer, transportCfg, logsCfg);
+        initClusteringOrchestrationLayer(context, serviceContainer, transportCfg, logsCfg);
     }
 
-    private void initCLusteringOrchestrationLayer(final SystemContext context, final ServiceContainer serviceContainer, final TransportComponentCfg config, LogStreamsCfg logsCfg)
+    private void initClusteringOrchestrationLayer(final SystemContext context, final ServiceContainer serviceContainer, final TransportComponentCfg config, LogStreamsCfg logsCfg)
     {
         final CompositeServiceBuilder orchestrationLayerInstall = serviceContainer.createComposite(CLUSTERING_ORCHESTRATION_LAYER);
 
@@ -79,6 +79,13 @@ public class ClusterComponent implements Component
             .dependency(STREAM_PROCESSOR_SERVICE_FACTORY, idGeneratorService.getStreamProcessorServiceFactoryInjector())
             .groupReference(LEADER_PARTITION_SYSTEM_GROUP_NAME, idGeneratorService.getSystemLeaderGroupReference())
             .install();
+
+        final OrchestrationInstallService orchestrationInstallService = new OrchestrationInstallService();
+        orchestrationLayerInstall.createService(ORCHESTRATION_INSTALL_SERVICE_NAME, orchestrationInstallService)
+                                 .groupReference(LEADER_PARTITION_SYSTEM_GROUP_NAME, idGeneratorService.getSystemLeaderGroupReference())
+                                 .install();
+
+        orchestrationLayerInstall.install();
 
     }
 

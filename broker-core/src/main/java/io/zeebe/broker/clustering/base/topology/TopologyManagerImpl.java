@@ -348,7 +348,7 @@ public class TopologyManagerImpl extends Actor implements TopologyManager
     }
 
     @Override
-    public <R> ActorFuture<R> query(Function<Topology, R> query)
+    public <R> ActorFuture<R> query(Function<ReadableTopology, R> query)
     {
         return actor.call(() -> query.apply(topology));
     }

@@ -12,6 +12,6 @@ public class ClusterOrchestrationLayerServiceNames
 
     public static final ServiceName<IdGenerator> ID_GENERATOR_SERVICE_NAME = ServiceName.newServiceName("cluster.orchestration.id.generator", IdGenerator.class);
 
-    public static final ServiceName<OrchestrationInstallService> ORCHESTRATION_INSTALL_SERVICE_NAME = ServiceName.newServiceName("cluster.orchestration.install", OrchestrationInstallService.class);
+    public static final ServiceName<Void> ORCHESTRATION_INSTALL_SERVICE_NAME = ServiceName.newServiceName("cluster.orchestration.install", Void.class);
     public static final ServiceName<OrchestrationService> ORCHESTRATION_SERVICE_NAME = ServiceName.newServiceName("cluster.orchestration", OrchestrationService.class);
 }
