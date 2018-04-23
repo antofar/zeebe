@@ -1,5 +1,6 @@
 package io.zeebe.broker.clustering.orchestration.state;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -27,6 +28,7 @@ public abstract class OrchestrationCommand
         this.partitionId = partitionId;
         this.replicationFactor = replicationFactor;
         this.count = count;
+        this.remoteAddresses = new ArrayList<>();
     }
 
     public List<RemoteAddress> getRemoteAddresses()

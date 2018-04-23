@@ -115,7 +115,7 @@ public class TransportComponent implements Component
             .dependency(TransportServiceNames.serverTransport(CLIENT_API_SERVER_NAME), controlMessageHandlerManagerService.getTransportInjector())
             .dependency(TaskQueueServiceNames.TASK_QUEUE_SUBSCRIPTION_MANAGER, controlMessageHandlerManagerService.getTaskSubscriptionManagerInjector())
             .dependency(TopicSubscriptionServiceNames.TOPIC_SUBSCRIPTION_SERVICE, controlMessageHandlerManagerService.getTopicSubscriptionServiceInjector())
-            .dependency(SystemServiceNames.SYSTEM_LOG_MANAGER, controlMessageHandlerManagerService.getSystemPartitionManagerInjector())
+//            .dependency(SystemServiceNames.SYSTEM_LOG_MANAGER, controlMessageHandlerManagerService.getSystemPartitionManagerInjector())
             .dependency(ClusterBaseLayerServiceNames.TOPOLOGY_MANAGER_SERVICE, controlMessageHandlerManagerService.getTopologyManagerInjector())
             .install();
 

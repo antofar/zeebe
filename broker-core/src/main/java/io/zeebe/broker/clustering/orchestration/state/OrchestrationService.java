@@ -77,30 +77,23 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
             LOG.warn("Rejecting create topic command: {}", topicEvent);
             topicEvent.setState(TopicState.CREATE_REJECTED);
         }
+        else
+        {
+            topicEvent.setState(TopicState.CREATED);
+        }
     }
 
     @Override
     public boolean executeSideEffects(TypedEvent<TopicEvent> event, TypedResponseWriter responseWriter)
     {
-        if (event.getValue().getState() == TopicState.CREATE_REJECTED)
-        {
-            return responseWriter.write(event);
-        }
-        else
-        {
-            return true;
-        }
+        return responseWriter.write(event);
     }
 
     @Override
     public long writeEvent(TypedEvent<TopicEvent> event, TypedStreamWriter writer)
     {
-        final TopicEvent value = event.getValue();
         long position = 0;
-        if (value.getState() == TopicState.CREATE_REJECTED)
-        {
-            position = writer.writeFollowupEvent(event.getKey(), event.getValue());
-        }
+        position = writer.writeFollowupEvent(event.getKey(), event.getValue());
         return position;
     }
 
@@ -191,10 +184,9 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
         actor.runOnCompletion(resultFuture, (currentState, throwable) ->
         {
 
-            if (throwable != null)
+            if (throwable == null)
             {
 
-                Loggers.CLUSTERING_LOGGER.error("{}", currentState);
                 for (final OrchestrationCommand pendingCommand : pendingCommands)
                 {
                     for (final RemoteAddress remoteAddress  : pendingCommand.getRemoteAddresses())
@@ -227,6 +219,14 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
                             {
                                 commands.add(new InviteMemberCommand(topicName, partitionState.getKey(), topicInfo.getReplicationFactor(), leader, missingMembers));
                             }
+                        }
+                    }
+                    else
+                    {
+                        final int missingPartititons = topicInfo.getPartitionCount();
+                        if (missingPartititons > 0)
+                        {
+                            commands.add(new CreatePartitionCommand(topicName, topicInfo.getReplicationFactor(), missingPartititons, actor, idGenerator));
                         }
                     }
                 }

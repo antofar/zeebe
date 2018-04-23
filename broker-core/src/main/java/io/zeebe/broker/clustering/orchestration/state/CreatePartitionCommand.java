@@ -6,12 +6,10 @@ import java.util.function.Supplier;
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.api.CreatePartitionRequest;
 import io.zeebe.broker.clustering.orchestration.generation.IdGenerator;
-import io.zeebe.transport.ClientTransport;
-import io.zeebe.transport.RemoteAddress;
-import io.zeebe.transport.SocketAddress;
-import io.zeebe.transport.TransportMessage;
+import io.zeebe.transport.*;
 import io.zeebe.util.buffer.BufferUtil;
 import io.zeebe.util.sched.ActorControl;
+import io.zeebe.util.sched.future.ActorFuture;
 
 public class CreatePartitionCommand extends OrchestrationCommand
 {
@@ -32,23 +30,41 @@ public class CreatePartitionCommand extends OrchestrationCommand
         for (int i = 0; i < count; i++)
         {
             actor.runOnCompletion(idGenerator.nextId(), (partitionId, throwable) -> {
-                if (throwable != null)
+                if (throwable == null)
                 {
                     final SocketAddress socketAddress = addressSupplier.get();
                     final RemoteAddress remoteAddress = clientTransport.registerRemoteAddress(socketAddress);
 
                     remoteAddresses.add(remoteAddress);
 
+                    Loggers.CLUSTERING_LOGGER.debug("Send create partition request to {} with partition id {}", socketAddress, partitionId);
+
                     final CreatePartitionRequest request = new CreatePartitionRequest().topicName(BufferUtil.wrapString(topicName))
                                                                                        .partitionId(partitionId)
                                                                                        .replicationFactor(replicationFactor);
 
-                    final TransportMessage message = new TransportMessage().remoteAddress(remoteAddress).writer(request);
+//                    final TransportMessage message = new TransportMessage().remoteAddress(remoteAddress).writer(request);
                     // TODO: think about error handling, maybe not
-                    clientTransport.getOutput().sendMessage(message);
+//                    clientTransport.getOutput().sendMessage(message);
+
+                    final ActorFuture<ClientResponse> responseFuture = clientTransport.getOutput().sendRequest(remoteAddress, request);
+
+                    actor.runOnCompletion(responseFuture, (createPartitionResponse, createPartitionError) ->
+                    {
+                        if (createPartitionError != null)
+                        {
+                            Loggers.CLUSTERING_LOGGER.error("Error while creating partition {}", partitionId, createPartitionError);
+                        }
+                        else
+                        {
+                            Loggers.CLUSTERING_LOGGER.debug("Partition {} creation successful.", partitionId);
+                        }
+                    });
                 }
                 else
                 {
+
+                    Loggers.CLUSTERING_LOGGER.debug("Error in generating partition id {}.", partitionId, throwable);
                     // TODO: loop or not thats the question
                 }
             });

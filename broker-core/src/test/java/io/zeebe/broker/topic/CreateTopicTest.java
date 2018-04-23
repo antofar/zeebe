@@ -23,12 +23,11 @@ import static io.zeebe.test.util.TestUtil.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
+import io.zeebe.broker.Loggers;
+import io.zeebe.test.util.TestUtil;
 import org.agrona.DirectBuffer;
 import org.junit.Rule;
 import org.junit.Test;
@@ -73,6 +72,24 @@ public class CreateTopicTest
                 entry("partitions", 2),
                 entry("replicationFactor", 1)
             );
+
+
+        TestUtil.doRepeatedly(() -> apiRule.createControlMessageRequest()
+            .messageType(ControlMessageType.REQUEST_TOPOLOGY)
+            .data().done().sendAndAwait())
+            .until((r) -> {
+                final List brokers = ((List)((Map) ((List) r.getData().get("brokers")).get(0)).get("partitions"));
+                return    brokers.size() >= 2;
+            }, 10000);
+
+        final ControlMessageResponse controlMessageResponse = apiRule.createControlMessageRequest()
+            .messageType(ControlMessageType.REQUEST_TOPOLOGY)
+            .data().done().sendAndAwait();
+
+        final Map<String, Object> data = controlMessageResponse.getData();
+        Loggers.CLUSTERING_LOGGER.debug("{}", data);
+
+
     }
 
     @Test

@@ -1,10 +1,12 @@
 package io.zeebe.broker.clustering.orchestration.generation;
 
+import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.base.partitions.Partition;
 import io.zeebe.broker.logstreams.processor.*;
 import io.zeebe.logstreams.log.LogStreamWriterImpl;
 import io.zeebe.protocol.Protocol;
 import io.zeebe.protocol.clientapi.EventType;
+import io.zeebe.protocol.impl.BrokerEventMetadata;
 import io.zeebe.servicecontainer.*;
 import io.zeebe.transport.ServerTransport;
 import io.zeebe.util.sched.ActorControl;
@@ -37,11 +39,6 @@ public class IdGenerator implements TypedEventProcessor<IdEvent>, Service<IdGene
     private ServerTransport clientApiTransport;
     private StreamProcessorServiceFactory streamProcessorServiceFactory;
     private LogStreamWriterImpl logStreamWriter;
-
-    public enum IdEventState
-    {
-        NEXT_ID
-    }
 
     @Override
     public void onOpen(TypedStreamProcessor streamProcessor)
@@ -106,10 +103,16 @@ public class IdGenerator implements TypedEventProcessor<IdEvent>, Service<IdGene
                 nextIdToWrite = commitedId + 1;
             }
 
+            final BrokerEventMetadata metadata = new BrokerEventMetadata();
+            metadata.eventType(EventType.ID_EVENT);
+
+            idEvent.reset();
+            idEvent.setState(IdEventState.NEXT_ID);
             idEvent.setId(nextIdToWrite);
 
             final long position = logStreamWriter
                 .valueWriter(idEvent)
+                .metadataWriter(metadata)
                 .positionAsKey()
                 .tryWrite();
 

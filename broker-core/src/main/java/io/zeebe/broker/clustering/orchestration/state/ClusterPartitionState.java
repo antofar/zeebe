@@ -26,4 +26,13 @@ public class ClusterPartitionState
     {
         this.leader = leader;
     }
+
+    @Override
+    public String toString()
+    {
+        return "ClusterPartitionState{" +
+            "replicationCount=" + replicationCount +
+            ", leader=" + leader +
+            '}';
+    }
 }
