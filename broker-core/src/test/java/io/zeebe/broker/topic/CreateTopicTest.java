@@ -74,22 +74,6 @@ public class CreateTopicTest
             );
 
 
-        TestUtil.doRepeatedly(() -> apiRule.createControlMessageRequest()
-            .messageType(ControlMessageType.REQUEST_TOPOLOGY)
-            .data().done().sendAndAwait())
-            .until((r) -> {
-                final List brokers = ((List)((Map) ((List) r.getData().get("brokers")).get(0)).get("partitions"));
-                return    brokers.size() >= 2;
-            }, 10000);
-
-        final ControlMessageResponse controlMessageResponse = apiRule.createControlMessageRequest()
-            .messageType(ControlMessageType.REQUEST_TOPOLOGY)
-            .data().done().sendAndAwait();
-
-        final Map<String, Object> data = controlMessageResponse.getData();
-        Loggers.CLUSTERING_LOGGER.debug("{}", data);
-
-
     }
 
     @Test
@@ -109,6 +93,24 @@ public class CreateTopicTest
                 entry("partitions", 64),
                 entry("replicationFactor", 1)
             );
+
+        TestUtil.doRepeatedly(() -> apiRule.createControlMessageRequest()
+                                           .messageType(ControlMessageType.REQUEST_TOPOLOGY)
+                                           .data().done().sendAndAwait())
+                .until((r) -> {
+                    final List partitions = ((List)((Map) ((List) r.getData().get("brokers")).get(0)).get("partitions"));
+                    System.out.println("Partitions: "  + partitions);
+                    return    partitions.size() >= 64;
+                }, 10000);
+
+        final ControlMessageResponse controlMessageResponse = apiRule.createControlMessageRequest()
+                                                                     .messageType(ControlMessageType.REQUEST_TOPOLOGY)
+                                                                     .data().done().sendAndAwait();
+
+        final Map<String, Object> data = controlMessageResponse.getData();
+        Loggers.CLUSTERING_LOGGER.debug("{}", data);
+
+
     }
 
     @Test

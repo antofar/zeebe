@@ -29,6 +29,11 @@ public class ClusterTopicState
         brokerUsage.compute(socketAddress, (a, v) -> v != null ? v + 1 : 1);
     }
 
+    public void addBroker(final SocketAddress socketAddress)
+    {
+        brokerUsage.putIfAbsent(socketAddress, 0);
+    }
+
     public SocketAddress nextSocketAddress()
     {
         final Optional<SocketAddress> nextAddress = brokerUsage.entrySet()

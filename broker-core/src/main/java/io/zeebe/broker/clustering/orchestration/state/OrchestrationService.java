@@ -153,6 +153,10 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
         {
             final ClusterTopicState currentState = new ClusterTopicState();
 
+            for (NodeInfo member : readableTopology.getMembers())
+            {
+                currentState.addBroker(member.getManagementPort());
+            }
 
             final Collection<PartitionInfo> partitions = readableTopology.getPartitions();
             for (final PartitionInfo partitionInfo : partitions)
@@ -187,6 +191,8 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
 
         actor.runOnCompletion(resultFuture, (currentState, throwable) ->
         {
+            LOG.info("Current state: {}", currentState);
+            LOG.info("Desired state: {}", state);
             if (throwable == null)
             {
                 for (final OrchestrationCommand pendingCommand : pendingCommands)

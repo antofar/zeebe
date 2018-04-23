@@ -39,4 +39,11 @@ public class TopicInfo
     {
         return name;
     }
+
+
+    @Override
+    public String toString()
+    {
+        return "TopicInfo{" + "name='" + name + '\'' + ", partitionCount=" + partitionCount + ", replicationFactor=" + replicationFactor + '}';
+    }
 }

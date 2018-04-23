@@ -171,8 +171,10 @@ public class Topology implements ReadableTopology
 
         LOG.debug("Updating partition information for parition {}", partition);
 
-        switch (state)
+        if (state != null)
         {
+            switch (state)
+            {
             case LEADER:
                 if (followers != null)
                 {
@@ -214,6 +216,7 @@ public class Topology implements ReadableTopology
             case CANDIDATE:
                 // internal raft state: not tracked by topology
                 break;
+            }
         }
 
         return partition;

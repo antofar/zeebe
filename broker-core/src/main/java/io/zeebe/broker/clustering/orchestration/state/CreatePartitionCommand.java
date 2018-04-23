@@ -34,33 +34,41 @@ public class CreatePartitionCommand extends OrchestrationCommand
                 if (throwable == null)
                 {
                     final SocketAddress socketAddress = addressSupplier.get();
-                    final RemoteAddress remoteAddress = clientTransport.registerRemoteAddress(socketAddress);
-
-                    remoteAddresses.add(remoteAddress);
-
-                    Loggers.CLUSTERING_LOGGER.debug("Send create partition request to {} with partition id {}", socketAddress, partitionId);
-
-                    final CreatePartitionRequest request = new CreatePartitionRequest().topicName(BufferUtil.wrapString(topicName))
-                                                                                       .partitionId(partitionId)
-                                                                                       .replicationFactor(replicationFactor);
-
-//                    final TransportMessage message = new TransportMessage().remoteAddress(remoteAddress).writer(request);
-                    // TODO: think about error handling, maybe not
-//                    clientTransport.getOutput().sendMessage(message);
-
-                    final ActorFuture<ClientResponse> responseFuture = clientTransport.getOutput().sendRequest(remoteAddress, request);
-
-                    actor.runOnCompletion(responseFuture, (createPartitionResponse, createPartitionError) ->
+                    if (socketAddress != null)
                     {
-                        if (createPartitionError != null)
+                        final RemoteAddress remoteAddress = clientTransport.registerRemoteAddress(socketAddress);
+
+                        remoteAddresses.add(remoteAddress);
+
+                        Loggers.CLUSTERING_LOGGER.debug("Send create partition request to {} with partition id {}", socketAddress, partitionId);
+
+                        final CreatePartitionRequest request = new CreatePartitionRequest().topicName(BufferUtil.wrapString(topicName))
+                                                                                           .partitionId(partitionId)
+                                                                                           .replicationFactor(replicationFactor);
+
+                        //                    final TransportMessage message = new TransportMessage().remoteAddress(remoteAddress).writer(request);
+                        // TODO: think about error handling, maybe not
+                        //                    clientTransport.getOutput().sendMessage(message);
+
+                        // TODO: message or request?
+                        final ActorFuture<ClientResponse> responseFuture = clientTransport.getOutput().sendRequest(remoteAddress, request);
+
+                        actor.runOnCompletion(responseFuture, (createPartitionResponse, createPartitionError) ->
                         {
-                            Loggers.CLUSTERING_LOGGER.error("Error while creating partition {}", partitionId, createPartitionError);
-                        }
-                        else
-                        {
-                            Loggers.CLUSTERING_LOGGER.debug("Partition {} creation successful.", partitionId);
-                        }
-                    });
+                            if (createPartitionError != null)
+                            {
+                                Loggers.CLUSTERING_LOGGER.error("Error while creating partition {}", partitionId, createPartitionError);
+                            }
+                            else
+                            {
+                                Loggers.CLUSTERING_LOGGER.debug("Partition {} creation successful.", partitionId);
+                            }
+                        });
+                    }
+                    else
+                    {
+                        Loggers.CLUSTERING_LOGGER.warn("Address supplier is unable to provide next socket address");
+                    }
                 }
                 else
                 {
