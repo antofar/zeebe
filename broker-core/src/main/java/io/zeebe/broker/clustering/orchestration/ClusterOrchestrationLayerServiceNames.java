@@ -1,7 +1,6 @@
-package io.zeebe.broker.clustering.base;
+package io.zeebe.broker.clustering.orchestration;
 
 import io.zeebe.broker.clustering.orchestration.generation.IdGenerator;
-import io.zeebe.broker.clustering.orchestration.state.OrchestrationInstallService;
 import io.zeebe.broker.clustering.orchestration.state.OrchestrationService;
 import io.zeebe.servicecontainer.ServiceName;
 

@@ -29,7 +29,8 @@ public class CreatePartitionCommand extends OrchestrationCommand
         Loggers.CLUSTERING_LOGGER.debug("Executing orchestration command: {}", this);
         for (int i = 0; i < count; i++)
         {
-            actor.runOnCompletion(idGenerator.nextId(), (partitionId, throwable) -> {
+            actor.runOnCompletion(idGenerator.nextId(), (partitionId, throwable) ->
+            {
                 if (throwable == null)
                 {
                     final SocketAddress socketAddress = addressSupplier.get();
@@ -95,7 +96,6 @@ public class CreatePartitionCommand extends OrchestrationCommand
     @Override
     public String toString()
     {
-        return "CreatePartitionCommand{" + "topicName='" + topicName + '\'' + ", partitionId=" + partitionId + ", replicationFactor=" + replicationFactor
-            + ", count=" + count + '}';
+        return "CreatePartitionCommand{" + "topicName='" + topicName + '\'' + ", partitionId=" + partitionId + ", replicationFactor=" + replicationFactor + ", count=" + count + '}';
     }
 }

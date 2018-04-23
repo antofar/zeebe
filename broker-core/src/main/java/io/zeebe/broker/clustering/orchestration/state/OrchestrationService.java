@@ -31,7 +31,6 @@ import static io.zeebe.broker.logstreams.processor.StreamProcessorIds.SYSTEM_CRE
 
 public class OrchestrationService implements Service<OrchestrationService>, TypedEventProcessor<TopicEvent>
 {
-
     private static final Logger LOG = Loggers.CLUSTERING_LOGGER;
 
     private static final Duration PENDING_COMMAND_TIMEOUT = Duration.ofSeconds(15);
@@ -58,6 +57,9 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
     public void onOpen(TypedStreamProcessor streamProcessor)
     {
         actor = streamProcessor.getActor();
+
+        // TODO: we should scheduler the timer only AFTER the recovery / reprocessing has been done.
+        // Idea: We could create a new "onRecovered()" callback
         actor.runAtFixedRate(Duration.ofSeconds(1), this::checkCurrentState);
 
         LOG.debug("Orchestration service log stream processor open");
@@ -144,8 +146,8 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
 
     private void checkCurrentState()
     {
-        final ActorFuture<ClusterTopicState> resultFuture = topologyManager.query(readableTopology -> {
-
+        final ActorFuture<ClusterTopicState> resultFuture = topologyManager.query(readableTopology ->
+        {
             final ClusterTopicState currentState = new ClusterTopicState();
 
 
@@ -180,13 +182,10 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
             return currentState;
         });
 
-
         actor.runOnCompletion(resultFuture, (currentState, throwable) ->
         {
-
             if (throwable == null)
             {
-
                 for (final OrchestrationCommand pendingCommand : pendingCommands)
                 {
                     for (final RemoteAddress remoteAddress  : pendingCommand.getRemoteAddresses())
@@ -201,32 +200,22 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
                 {
                     final String topicName = topicInfo.getName();
                     final Map<Integer, ClusterPartitionState> partitionReplication = currentState.getPartitionReplications(topicName);
-                    if (partitionReplication != null)
+                    final int missingPartititons = topicInfo.getPartitionCount() - partitionReplication.size();
+
+                    if (missingPartititons > 0)
                     {
-                        final int missingPartititons = topicInfo.getPartitionCount() - partitionReplication.size();
-                        if (missingPartititons > 0)
-                        {
-                            commands.add(new CreatePartitionCommand(topicName, topicInfo.getReplicationFactor(), missingPartititons, actor, idGenerator));
-                        }
-
-                        for (final Map.Entry<Integer, ClusterPartitionState> partitionState : partitionReplication.entrySet())
-                        {
-                            final ClusterPartitionState state = partitionState.getValue();
-                            final int missingMembers = topicInfo.getReplicationFactor() - state.getReplicationCount();
-
-                            final SocketAddress leader = state.getLeader();
-                            if (missingMembers > 0 && leader != null)
-                            {
-                                commands.add(new InviteMemberCommand(topicName, partitionState.getKey(), topicInfo.getReplicationFactor(), leader, missingMembers));
-                            }
-                        }
+                        commands.add(new CreatePartitionCommand(topicName, topicInfo.getReplicationFactor(), missingPartititons, actor, idGenerator));
                     }
-                    else
+
+                    for (final Map.Entry<Integer, ClusterPartitionState> partitionState : partitionReplication.entrySet())
                     {
-                        final int missingPartititons = topicInfo.getPartitionCount();
-                        if (missingPartititons > 0)
+                        final ClusterPartitionState state = partitionState.getValue();
+                        final int missingMembers = topicInfo.getReplicationFactor() - state.getReplicationCount();
+
+                        final SocketAddress leader = state.getLeader();
+                        if (missingMembers > 0 && leader != null)
                         {
-                            commands.add(new CreatePartitionCommand(topicName, topicInfo.getReplicationFactor(), missingPartititons, actor, idGenerator));
+                            commands.add(new InviteMemberCommand(topicName, partitionState.getKey(), topicInfo.getReplicationFactor(), leader, missingMembers));
                         }
                     }
                 }
@@ -247,7 +236,8 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
                 command.execute(managmentClientTransport, socketAddressSupplier);
                 pendingCommands.add(command);
 
-                actor.runDelayed(PENDING_COMMAND_TIMEOUT, () -> {
+                actor.runDelayed(PENDING_COMMAND_TIMEOUT, () ->
+                {
                     pendingCommands.remove(command);
                 });
             }

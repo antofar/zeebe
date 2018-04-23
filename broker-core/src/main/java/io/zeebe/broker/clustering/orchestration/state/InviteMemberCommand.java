@@ -69,8 +69,7 @@ public class InviteMemberCommand extends OrchestrationCommand
     @Override
     public String toString()
     {
-        return "InviteMemberCommand{" + "leader=" + leader + ", topicName='" + topicName + '\'' + ", partitionId=" + partitionId + ", replicationFactor="
-            + replicationFactor + ", count=" + count + '}';
+        return "InviteMemberCommand{" + "leader=" + leader + ", topicName='" + topicName + '\'' + ", partitionId=" + partitionId + ", replicationFactor=" + replicationFactor + ", count=" + count + '}';
     }
 
 }

@@ -4,11 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
-import io.zeebe.transport.ClientTransport;
-import io.zeebe.transport.RemoteAddress;
-import io.zeebe.transport.ServerOutput;
-import io.zeebe.transport.SocketAddress;
-import org.agrona.DirectBuffer;
+import io.zeebe.transport.*;
 
 public abstract class OrchestrationCommand
 {
@@ -36,5 +32,5 @@ public abstract class OrchestrationCommand
         return remoteAddresses;
     }
 
-    public abstract void execute(final ClientTransport serverOutput, final Supplier<SocketAddress> addressSupplier);
+    public abstract void execute(ClientTransport serverOutput, Supplier<SocketAddress> addressSupplier);
 }

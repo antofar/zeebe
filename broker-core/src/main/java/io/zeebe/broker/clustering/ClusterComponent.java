@@ -42,7 +42,7 @@ import io.zeebe.servicecontainer.ServiceContainer;
 import org.slf4j.Logger;
 
 import static io.zeebe.broker.clustering.base.ClusterBaseLayerServiceNames.*;
-import static io.zeebe.broker.clustering.base.ClusterOrchestrationLayerServiceNames.*;
+import static io.zeebe.broker.clustering.orchestration.ClusterOrchestrationLayerServiceNames.*;
 import static io.zeebe.broker.logstreams.LogStreamServiceNames.STREAM_PROCESSOR_SERVICE_FACTORY;
 import static io.zeebe.broker.system.SystemServiceNames.WORKFLOW_REQUEST_MESSAGE_HANDLER_SERVICE;
 import static io.zeebe.broker.transport.TransportServiceNames.*;

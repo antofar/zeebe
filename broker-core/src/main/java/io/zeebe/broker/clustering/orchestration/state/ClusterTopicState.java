@@ -51,7 +51,7 @@ public class ClusterTopicState
 
     public Map<Integer, ClusterPartitionState> getPartitionReplications(String topicName)
     {
-        return topicPartitonReplications.get(topicName);
+        return topicPartitonReplications.getOrDefault(topicName, new HashMap<>());
     }
 
     @Override

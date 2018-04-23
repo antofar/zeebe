@@ -1,11 +1,10 @@
 package io.zeebe.broker.clustering.orchestration.generation;
 
-import io.zeebe.broker.workflow.data.DeploymentState;
+import static io.zeebe.broker.workflow.data.WorkflowInstanceEvent.PROP_STATE;
+
 import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.msgpack.property.EnumProperty;
 import io.zeebe.msgpack.property.IntegerProperty;
-
-import static io.zeebe.broker.workflow.data.WorkflowInstanceEvent.PROP_STATE;
 
 public class IdEvent extends UnpackedObject
 {

@@ -1,6 +1,10 @@
 package io.zeebe.broker.clustering.orchestration.generation;
 
-import io.zeebe.broker.Loggers;
+import static io.zeebe.broker.logstreams.processor.StreamProcessorIds.SYSTEM_ID_PROCESSOR_ID;
+
+import java.util.ArrayDeque;
+import java.util.Queue;
+
 import io.zeebe.broker.clustering.base.partitions.Partition;
 import io.zeebe.broker.logstreams.processor.*;
 import io.zeebe.logstreams.log.LogStreamWriterImpl;
@@ -12,11 +16,6 @@ import io.zeebe.transport.ServerTransport;
 import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
-
-import java.util.ArrayDeque;
-import java.util.Queue;
-
-import static io.zeebe.broker.logstreams.processor.StreamProcessorIds.SYSTEM_ID_PROCESSOR_ID;
 
 public class IdGenerator implements TypedEventProcessor<IdEvent>, Service<IdGenerator>
 {

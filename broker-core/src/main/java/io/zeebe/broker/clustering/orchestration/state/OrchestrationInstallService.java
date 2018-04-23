@@ -1,13 +1,13 @@
 package io.zeebe.broker.clustering.orchestration.state;
 
 import io.zeebe.broker.Loggers;
-import io.zeebe.broker.clustering.base.ClusterOrchestrationLayerServiceNames;
 import io.zeebe.broker.clustering.base.partitions.Partition;
+import io.zeebe.broker.clustering.orchestration.ClusterOrchestrationLayerServiceNames;
 import io.zeebe.broker.transport.TransportServiceNames;
 import io.zeebe.servicecontainer.*;
 
 import static io.zeebe.broker.clustering.base.ClusterBaseLayerServiceNames.TOPOLOGY_MANAGER_SERVICE;
-import static io.zeebe.broker.clustering.base.ClusterOrchestrationLayerServiceNames.ID_GENERATOR_SERVICE_NAME;
+import static io.zeebe.broker.clustering.orchestration.ClusterOrchestrationLayerServiceNames.ID_GENERATOR_SERVICE_NAME;
 import static io.zeebe.broker.logstreams.LogStreamServiceNames.STREAM_PROCESSOR_SERVICE_FACTORY;
 import static io.zeebe.broker.transport.TransportServiceNames.CLIENT_API_SERVER_NAME;
 import static io.zeebe.broker.transport.TransportServiceNames.serverTransport;
