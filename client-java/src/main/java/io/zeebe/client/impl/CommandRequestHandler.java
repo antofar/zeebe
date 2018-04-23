@@ -19,14 +19,7 @@ import static io.zeebe.protocol.clientapi.ExecuteCommandRequestEncoder.commandHe
 
 import java.util.function.BiFunction;
 
-import org.agrona.DirectBuffer;
-import org.agrona.ExpandableArrayBuffer;
-import org.agrona.MutableDirectBuffer;
-import org.agrona.io.DirectBufferInputStream;
-import org.agrona.io.ExpandableDirectBufferOutputStream;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import io.zeebe.client.cmd.ClientCommandRejectedException;
 import io.zeebe.client.cmd.ClientException;
 import io.zeebe.client.event.EventMetadata;
@@ -37,6 +30,12 @@ import io.zeebe.protocol.clientapi.ExecuteCommandRequestEncoder;
 import io.zeebe.protocol.clientapi.ExecuteCommandResponseDecoder;
 import io.zeebe.protocol.clientapi.MessageHeaderDecoder;
 import io.zeebe.protocol.clientapi.MessageHeaderEncoder;
+import io.zeebe.util.buffer.BufferUtil;
+import org.agrona.DirectBuffer;
+import org.agrona.ExpandableArrayBuffer;
+import org.agrona.MutableDirectBuffer;
+import org.agrona.io.DirectBufferInputStream;
+import org.agrona.io.ExpandableDirectBufferOutputStream;
 
 public class CommandRequestHandler implements RequestResponseHandler
 {
@@ -112,6 +111,8 @@ public class CommandRequestHandler implements RequestResponseHandler
         serializedCommand.putShort(commandHeaderOffset, commandLength, java.nio.ByteOrder.LITTLE_ENDIAN);
 
         serializedCommandLength = serializedCommandOffset + out.position();
+
+        System.out.println("YOLO:" + BufferUtil.bufferAsHexString(serializedCommand, serializedCommandOffset, serializedCommandLength));
     }
 
     @Override

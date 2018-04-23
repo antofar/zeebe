@@ -1,11 +1,11 @@
 package io.zeebe.broker.clustering.orchestration.state;
 
-import io.zeebe.transport.SocketAddress;
+import io.zeebe.broker.clustering.base.topology.NodeInfo;
 
 public class ClusterPartitionState
 {
     private int replicationCount;
-    private SocketAddress leader;
+    private NodeInfo leader;
 
     public int getReplicationCount()
     {
@@ -17,12 +17,12 @@ public class ClusterPartitionState
         this.replicationCount = replicationCount;
     }
 
-    public SocketAddress getLeader()
+    public NodeInfo getLeader()
     {
         return leader;
     }
 
-    public void setLeader(final SocketAddress leader)
+    public void setLeader(final NodeInfo leader)
     {
         this.leader = leader;
     }

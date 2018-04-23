@@ -69,7 +69,7 @@ public class CreateTopicClusteredTest
         // given
 
         // when
-        final Topic topic = clusteringRule.createTopic("foo", PARTITION_COUNT);
+        final Topic topic = clusteringRule.createTopic("foo", PARTITION_COUNT, 3);
 
         // then
         assertThat(topic.getName()).isEqualTo("foo");

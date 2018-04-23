@@ -4,6 +4,7 @@ import static io.zeebe.broker.logstreams.processor.StreamProcessorIds.SYSTEM_CRE
 
 import java.time.Duration;
 import java.util.*;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import io.zeebe.broker.Loggers;
@@ -186,7 +187,7 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
                 {
                     replicationCount += 1;
                     currentState.increaseBrokerUsage(leader.getManagementPort());
-                    currentState.setLeader(topicName, partitionId, leader.getReplicationPort());
+                    currentState.setLeader(topicName, partitionId, leader);
                 }
 
                 currentState.setReplicationCount(topicName, partitionId, replicationCount);
@@ -227,10 +228,10 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
                         final ClusterPartitionState state = partitionState.getValue();
                         final int missingMembers = topicInfo.getReplicationFactor() - state.getReplicationCount();
 
-                        final SocketAddress leader = state.getLeader();
+                        final NodeInfo leader = state.getLeader();
                         if (missingMembers > 0 && leader != null)
                         {
-                            commands.add(new InviteMemberCommand(topicName, partitionState.getKey(), topicInfo.getReplicationFactor(), leader, missingMembers));
+                            commands.add(new InviteMemberCommand(topicName, partitionState.getKey(), topicInfo.getReplicationFactor(), leader, missingMembers, actor));
                         }
                     }
                 }
@@ -241,7 +242,7 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
         });
     }
 
-    private void executeCommands(final Supplier<SocketAddress> socketAddressSupplier, final List<OrchestrationCommand> commands)
+    private void executeCommands(final Function<SocketAddress, SocketAddress> socketAddressSupplier, final List<OrchestrationCommand> commands)
     {
 
         for (final OrchestrationCommand command : commands)

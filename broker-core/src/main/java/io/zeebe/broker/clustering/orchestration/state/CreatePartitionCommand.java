@@ -1,6 +1,7 @@
 package io.zeebe.broker.clustering.orchestration.state;
 
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import io.zeebe.broker.Loggers;
@@ -22,7 +23,6 @@ import org.agrona.DirectBuffer;
 
 public class CreatePartitionCommand extends OrchestrationCommand
 {
-    private final ActorControl actor;
     private final IdGenerator idGenerator;
 
     private int partitions;
@@ -30,15 +30,14 @@ public class CreatePartitionCommand extends OrchestrationCommand
 
     public CreatePartitionCommand(final String topicName, final int replicationFactor, final int count, final ActorControl actor, final IdGenerator idGenerator, final int partitions)
     {
-        super(topicName, -1, replicationFactor, count);
-        this.actor = actor;
+        super(topicName, -1, replicationFactor, count, actor);
         this.idGenerator = idGenerator;
         this.partitions = partitions;
     }
 
 
     @Override
-    public void execute(final ClientTransport clientTransport, final Supplier<SocketAddress> addressSupplier, LogStreamWriter logStreamWriter)
+    public void execute(final ClientTransport clientTransport, final Function<SocketAddress, SocketAddress> addressSupplier, LogStreamWriter logStreamWriter)
     {
         Loggers.CLUSTERING_LOGGER.debug("Executing orchestration command: {}", this);
         for (int i = 0; i < count; i++)
@@ -47,7 +46,7 @@ public class CreatePartitionCommand extends OrchestrationCommand
             {
                 if (throwable == null)
                 {
-                    final SocketAddress socketAddress = addressSupplier.get();
+                    final SocketAddress socketAddress = addressSupplier.apply(null);
                     if (socketAddress != null)
                     {
                         final RemoteAddress remoteAddress = clientTransport.registerRemoteAddress(socketAddress);

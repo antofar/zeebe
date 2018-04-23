@@ -57,7 +57,6 @@ public class ClusteringRule extends ExternalResource
     private final ClientRule clientRule;
 
     // interal
-    private int replicationFactor = DEFAULT_REPLICATION_FACTOR;
     private ZeebeClient zeebeClient;
     protected final Map<SocketAddress, Broker> brokers = new HashMap<>();
 
@@ -145,8 +144,13 @@ public class ClusteringRule extends ExternalResource
      */
     public Topic createTopic(String topicName, int partitionCount)
     {
+        return createTopic(topicName, partitionCount, DEFAULT_REPLICATION_FACTOR);
+    }
+
+    public Topic createTopic(String topicName, int partitionCount, int replicationFactor)
+    {
         final Event topicEvent = zeebeClient.topics()
-                                         .create(topicName, partitionCount)
+                                         .create(topicName, partitionCount, replicationFactor)
                                          .execute();
         assertThat(topicEvent.getState()).isEqualTo("CREATING");
 
@@ -225,7 +229,7 @@ public class ClusteringRule extends ExternalResource
             {
                 brokers.put(socketAddress, startBroker(brokerConfigs[i]));
 
-                waitForInternalSystemAndReplicationFactor(replicationFactor);
+                waitForInternalSystemAndReplicationFactor(DEFAULT_REPLICATION_FACTOR);
                 break;
             }
         }
@@ -373,8 +377,4 @@ public class ClusteringRule extends ExternalResource
         return value;
     }
 
-    public void setReplicationFactor(int replicationFactor)
-    {
-        this.replicationFactor = replicationFactor;
-    }
 }

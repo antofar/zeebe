@@ -58,7 +58,11 @@ public class TopicClientImpl implements TopicsClient
     @Override
     public Request<Event> create(String topicName, int partitions)
     {
-        return new CreateTopicCommandImpl(client.getCommandManager(), topicName, partitions);
+        return create(topicName, partitions, 1);
+    }
+    public Request<Event> create (String topicName,int partitions, int replicationFactor)
+    {
+        return new CreateTopicCommandImpl(client.getCommandManager(), topicName, partitions, replicationFactor);
     }
 
     public CreateTopicSubscriptionCommandImpl createTopicSubscription(String topicName, int partitionId)

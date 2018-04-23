@@ -2,6 +2,7 @@ package io.zeebe.broker.clustering.orchestration.state;
 
 import java.util.*;
 
+import io.zeebe.broker.clustering.base.topology.NodeInfo;
 import io.zeebe.transport.SocketAddress;
 
 public class ClusterTopicState
@@ -17,7 +18,7 @@ public class ClusterTopicState
                                  .setReplicationCount(replicationCount);
     }
 
-    public void setLeader(final String topicName, final int partitionId, final SocketAddress leader)
+    public void setLeader(final String topicName, final int partitionId, final NodeInfo leader)
     {
         topicPartitonReplications.computeIfAbsent(topicName, (n) -> new HashMap<>())
                                  .computeIfAbsent(partitionId, (p) -> new ClusterPartitionState())
@@ -34,13 +35,14 @@ public class ClusterTopicState
         brokerUsage.putIfAbsent(socketAddress, 0);
     }
 
-    public SocketAddress nextSocketAddress()
+    public SocketAddress nextSocketAddress(final SocketAddress skipAddress)
     {
         final Optional<SocketAddress> nextAddress = brokerUsage.entrySet()
-                    .stream()
-                    .sorted(Comparator.comparing(Map.Entry::getValue))
-                    .map(Map.Entry::getKey)
-                    .findFirst();
+                                                               .stream()
+                                                               .filter(e -> !e.getKey().equals(skipAddress))
+                                                               .sorted(Comparator.comparing(Map.Entry::getValue))
+                                                               .map(Map.Entry::getKey)
+                                                               .findFirst();
 
         if (nextAddress.isPresent())
         {
