@@ -15,6 +15,8 @@
  */
 package io.zeebe.broker.it;
 
+import static io.zeebe.test.util.TestUtil.waitUntil;
+
 import java.util.List;
 import java.util.Properties;
 import java.util.function.Supplier;
@@ -71,24 +73,29 @@ public class ClientRule extends ExternalResource
     private void createDefaultTopic()
     {
         client.topics().create(DEFAULT_TOPIC, 1).execute();
-        final TopologyResponse topology = client.requestTopology().execute();
 
         defaultPartition = -1;
-        final List<TopologyBroker> topologyBrokers = topology.getBrokers();
 
-        for (TopologyBroker leader : topologyBrokers)
-        {
-            final List<BrokerPartitionState> partitions = leader.getPartitions();
-            for (BrokerPartitionState brokerPartitionState : partitions)
+        // TODO: do we need default partition id?
+        waitUntil(() -> {
+            final TopologyResponse topology = client.requestTopology().execute();
+            final List<TopologyBroker> topologyBrokers = topology.getBrokers();
+
+            for (TopologyBroker leader : topologyBrokers)
             {
-                if (DEFAULT_TOPIC.equals(brokerPartitionState.getTopicName())
-                    && brokerPartitionState.isLeader())
+                final List<BrokerPartitionState> partitions = leader.getPartitions();
+                for (BrokerPartitionState brokerPartitionState : partitions)
                 {
-                    defaultPartition = brokerPartitionState.getPartitionId();
-                    break;
+                    if (DEFAULT_TOPIC.equals(brokerPartitionState.getTopicName())
+                        && brokerPartitionState.isLeader())
+                    {
+                        defaultPartition = brokerPartitionState.getPartitionId();
+                        return true;
+                    }
                 }
             }
-        }
+            return false;
+        });
 
         if (defaultPartition < 0)
         {

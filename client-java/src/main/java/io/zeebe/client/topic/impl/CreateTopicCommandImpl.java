@@ -47,7 +47,7 @@ public class CreateTopicCommandImpl extends CommandImpl<Event>
     @Override
     public String getExpectedStatus()
     {
-        return TopicEventType.CREATED.name();
+        return TopicEventType.CREATING.name();
     }
 
 }

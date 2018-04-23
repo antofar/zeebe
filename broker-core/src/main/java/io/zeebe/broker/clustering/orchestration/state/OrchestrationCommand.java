@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
+import io.zeebe.logstreams.log.LogStreamWriter;
 import io.zeebe.transport.*;
 
 public abstract class OrchestrationCommand
@@ -32,5 +33,5 @@ public abstract class OrchestrationCommand
         return remoteAddresses;
     }
 
-    public abstract void execute(ClientTransport serverOutput, Supplier<SocketAddress> addressSupplier);
+    public abstract void execute(ClientTransport serverOutput, Supplier<SocketAddress> addressSupplier, LogStreamWriter logStreamWriter);
 }

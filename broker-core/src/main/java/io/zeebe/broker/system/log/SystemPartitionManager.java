@@ -17,7 +17,6 @@
  */
 package io.zeebe.broker.system.log;
 
-import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.zeebe.broker.clustering.base.partitions.Partition;
@@ -25,15 +24,15 @@ import io.zeebe.broker.clustering.base.topology.TopologyManager;
 import io.zeebe.broker.logstreams.processor.*;
 import io.zeebe.broker.system.SystemConfiguration;
 import io.zeebe.broker.system.deployment.processor.PartitionCollector;
-import io.zeebe.protocol.clientapi.EventType;
 import io.zeebe.servicecontainer.*;
-import io.zeebe.transport.*;
+import io.zeebe.transport.ClientTransport;
+import io.zeebe.transport.ServerOutput;
+import io.zeebe.transport.ServerTransport;
 import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
 
 public class SystemPartitionManager implements Service<SystemPartitionManager>
 {
-    public static final String CREATE_TOPICS_PROCESSOR = "create-topics";
     public static final String COLLECT_PARTITIONS_PROCESSOR = "collect-partitions";
 
     private final ServiceGroupReference<Partition> partitionsGroupReference = ServiceGroupReference.<Partition>create()
@@ -68,7 +67,6 @@ public class SystemPartitionManager implements Service<SystemPartitionManager>
 
         final TypedStreamEnvironment streamEnvironment = new TypedStreamEnvironment(partition.getLogStream(), serverOutput);
 
-        installCreateTopicProcessor(partition, serviceName, streamEnvironment);
         installPartitionCollectorProcessor(partition, serviceName, serverOutput, streamEnvironment);
     }
 
@@ -89,71 +87,10 @@ public class SystemPartitionManager implements Service<SystemPartitionManager>
         partitionResponderRef.set(partitionResponder);
     }
 
-    private void installCreateTopicProcessor(Partition partition,
-            ServiceName<Partition> partitionServiceName,
-            final TypedStreamEnvironment streamEnvironment)
-    {
-        final PendingPartitionsIndex partitionsIndex = new PendingPartitionsIndex();
-        final TopicsIndex topicsIndex = new TopicsIndex();
-
-        final TypedStreamProcessor streamProcessor = buildTopicCreationProcessor(clientTransport,
-            topologyManager,
-            streamEnvironment,
-            nodeSelectionStrategy,
-            topicsIndex,
-            partitionsIndex,
-            Duration.ofSeconds(systemConfiguration.getPartitionCreationTimeoutSeconds()));
-
-        streamProcessorServiceFactory.createService(partition, partitionServiceName)
-            .processor(streamProcessor)
-            .processorId(StreamProcessorIds.SYSTEM_CREATE_TOPIC_PROCESSOR_ID)
-            .processorName(CREATE_TOPICS_PROCESSOR)
-            .build();
-    }
 
     private void removeSystemPartition()
     {
         partitionResponderRef.set(null);
-    }
-
-    public static TypedStreamProcessor buildTopicCreationProcessor(ClientTransport clientTransport,
-            TopologyManager topologyManager,
-            TypedStreamEnvironment streamEnvironment,
-            PartitionCreatorSelectionStrategy nodeSelectionStrategy,
-            TopicsIndex topicsIndex,
-            PendingPartitionsIndex partitionsIndex,
-            Duration creationExpiration)
-    {
-        final PartitionIdGenerator idGenerator = new PartitionIdGenerator();
-
-        final ResolvePendingPartitionsCommand partitionsCommand = new ResolvePendingPartitionsCommand(partitionsIndex, streamEnvironment.buildStreamReader(), streamEnvironment.buildStreamWriter());
-
-        return streamEnvironment.newStreamProcessor()
-            .onEvent(EventType.TOPIC_EVENT, TopicState.CREATE, new CreateTopicProcessor(topicsIndex, idGenerator, nodeSelectionStrategy))
-            .onEvent(EventType.PARTITION_EVENT, PartitionState.CREATE, new CreatePartitionProcessor(clientTransport, partitionsIndex, creationExpiration))
-            .onEvent(EventType.PARTITION_EVENT, PartitionState.CREATE_COMPLETE, new CompletePartitionProcessor(partitionsIndex))
-            .onEvent(EventType.PARTITION_EVENT, PartitionState.CREATED, new PartitionCreatedProcessor(topicsIndex, streamEnvironment.buildStreamReader()))
-            .onEvent(EventType.PARTITION_EVENT, PartitionState.CREATE_EXPIRE, new ExpirePartitionCreationProcessor(partitionsIndex, idGenerator, nodeSelectionStrategy))
-            .withStateResource(topicsIndex.getRawMap())
-            .withStateResource(partitionsIndex.getRawMap())
-            .withStateResource(idGenerator)
-            .withListener(new StreamProcessorLifecycleAware()
-            {
-                @Override
-                public void onOpen(TypedStreamProcessor streamProcessor)
-                {
-                    partitionsCommand.init(streamProcessor.getActor());
-                    topologyManager.addTopologyPartitionListener(partitionsCommand);
-                }
-
-                @Override
-                public void onClose()
-                {
-                    topologyManager.removeTopologyPartitionListener(partitionsCommand);
-                    partitionsCommand.close();
-                }
-            })
-            .build();
     }
 
     public static TypedStreamProcessor buildPartitionResponseProcessor(

@@ -145,8 +145,6 @@ public class TopologyManagerImpl extends Actor implements TopologyManager, RaftS
 
             actor.run(() ->
             {
-                LOG.trace("Received API event from member {}.", senderCopy);
-
                 int offset = 0;
 
                 final SocketAddress managementApi = new SocketAddress();
@@ -159,6 +157,8 @@ public class TopologyManagerImpl extends Actor implements TopologyManager, RaftS
                 readSocketAddress(offset, payloadCopy, replicationApi);
 
                 final NodeInfo newMember = new NodeInfo(clientApi, managementApi, replicationApi);
+                LOG.trace("Received API event from member {} with {}.", senderCopy, newMember);
+
                 topology.addMember(newMember);
                 notifyMemberAdded(newMember);
             });
@@ -195,12 +195,11 @@ public class TopologyManagerImpl extends Actor implements TopologyManager, RaftS
 
             actor.run(() ->
             {
-                LOG.trace("Received raft state change event for member {}", senderCopy);
-
                 final NodeInfo member = topology.getMemberByAddress(senderCopy);
 
                 if (member != null)
                 {
+                    LOG.trace("Received raft state change event for member {} {}", senderCopy, member);
                     readPartitions(payloadCopy, 0, member, TopologyManagerImpl.this);
                 }
                 else
@@ -225,7 +224,7 @@ public class TopologyManagerImpl extends Actor implements TopologyManager, RaftS
                 for (NodeInfo member : topology.getMembers())
                 {
                     final int length = writeSockedAddresses(member, writeBuffer, 0);
-                    request.addPayload(member.getApiPort(), writeBuffer, 0, length);
+                    request.addPayload(member.getManagementPort(), writeBuffer, 0, length);
                 }
 
                 LOG.trace("Send API sync response.");
@@ -247,7 +246,7 @@ public class TopologyManagerImpl extends Actor implements TopologyManager, RaftS
                 for (NodeInfo member : topology.getMembers())
                 {
                     final int length = writeTopology(topology, writeBuffer, 0);
-                    request.addPayload(member.getApiPort(), writeBuffer, 0, length);
+                    request.addPayload(member.getManagementPort(), writeBuffer, 0, length);
                 }
 
                 LOG.trace("Send RAFT state sync response.");

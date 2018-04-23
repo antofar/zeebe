@@ -6,6 +6,7 @@ import java.util.function.Supplier;
 
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.api.InvitationRequest;
+import io.zeebe.logstreams.log.LogStreamWriter;
 import io.zeebe.transport.ClientTransport;
 import io.zeebe.transport.RemoteAddress;
 import io.zeebe.transport.SocketAddress;
@@ -23,7 +24,7 @@ public class InviteMemberCommand extends OrchestrationCommand
     }
 
     @Override
-    public void execute(ClientTransport clientTransport, Supplier<SocketAddress> addressSupplier)
+    public void execute(ClientTransport clientTransport, Supplier<SocketAddress> addressSupplier, LogStreamWriter logStreamWriter)
     {
         Loggers.CLUSTERING_LOGGER.debug("Executing orchestration command: {}", this);
         for (int i = 0; i < count; i++)

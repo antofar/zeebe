@@ -42,7 +42,7 @@ public class ControlMessageHandlerManagerService implements Service<ControlMessa
     protected final Injector<Dispatcher> controlMessageBufferInjector = new Injector<>();
     protected final Injector<TaskSubscriptionManager> taskSubscriptionManagerInjector = new Injector<>();
     protected final Injector<TopicSubscriptionService> topicSubscriptionServiceInjector = new Injector<>();
-//    protected final Injector<SystemPartitionManager> systemPartitionManagerInjector = new Injector<>();
+    protected final Injector<SystemPartitionManager> systemPartitionManagerInjector = new Injector<>();
     private final Injector<TopologyManager> topologyManagerInjector = new Injector<>();
 
     protected final long controlMessageRequestTimeoutInMillis;
@@ -64,7 +64,7 @@ public class ControlMessageHandlerManagerService implements Service<ControlMessa
 
         final TaskSubscriptionManager taskSubscriptionManager = taskSubscriptionManagerInjector.getValue();
         final TopicSubscriptionService topicSubscriptionService = topicSubscriptionServiceInjector.getValue();
-//        final SystemPartitionManager systemPartitionManager = systemPartitionManagerInjector.getValue();
+        final SystemPartitionManager systemPartitionManager = systemPartitionManagerInjector.getValue();
 
         final ServerOutput output = transport.getOutput();
 
@@ -73,8 +73,8 @@ public class ControlMessageHandlerManagerService implements Service<ControlMessa
             new IncreaseTaskSubscriptionCreditsHandler(output, taskSubscriptionManager),
             new RemoveTaskSubscriptionHandler(output, taskSubscriptionManager),
             new RemoveTopicSubscriptionHandler(output, topicSubscriptionService),
-            new RequestTopologyHandler(output, topologyManagerInjector.getValue())
-            //            new RequestPartitionsMessageHandler(output, systemPartitionManager)
+            new RequestTopologyHandler(output, topologyManagerInjector.getValue()),
+            new RequestPartitionsMessageHandler(output, systemPartitionManager)
         );
 
         service = new ControlMessageHandlerManager(
@@ -119,10 +119,10 @@ public class ControlMessageHandlerManagerService implements Service<ControlMessa
         return topicSubscriptionServiceInjector;
     }
 
-//    public Injector<SystemPartitionManager> getSystemPartitionManagerInjector()
-//    {
-//        return systemPartitionManagerInjector;
-//    }
+    public Injector<SystemPartitionManager> getSystemPartitionManagerInjector()
+    {
+        return systemPartitionManagerInjector;
+    }
 
     public Injector<TopologyManager> getTopologyManagerInjector()
     {

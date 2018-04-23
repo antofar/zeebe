@@ -127,7 +127,14 @@ public class TypedStreamProcessor implements StreamProcessor
 
         final UnpackedObject value = eventCache.get(metadata.getEventType());
         value.reset();
-        event.readValue(value);
+        try
+        {
+            event.readValue(value);
+        }
+        catch (Exception e)
+        {
+            throw e;
+        }
 
         final Enum state = getEventState(value);
         final TypedEventProcessor currentProcessor = (TypedEventProcessor) processorsForType.get(state);

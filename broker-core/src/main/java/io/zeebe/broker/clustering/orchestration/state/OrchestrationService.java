@@ -1,5 +1,11 @@
 package io.zeebe.broker.clustering.orchestration.state;
 
+import static io.zeebe.broker.logstreams.processor.StreamProcessorIds.SYSTEM_CREATE_TOPIC_PROCESSOR_ID;
+
+import java.time.Duration;
+import java.util.*;
+import java.util.function.Supplier;
+
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.base.partitions.Partition;
 import io.zeebe.broker.clustering.base.topology.NodeInfo;
@@ -9,6 +15,8 @@ import io.zeebe.broker.clustering.orchestration.generation.IdGenerator;
 import io.zeebe.broker.logstreams.processor.*;
 import io.zeebe.broker.system.log.TopicEvent;
 import io.zeebe.broker.system.log.TopicState;
+import io.zeebe.logstreams.log.LogStreamWriter;
+import io.zeebe.logstreams.log.LogStreamWriterImpl;
 import io.zeebe.protocol.clientapi.EventType;
 import io.zeebe.servicecontainer.Injector;
 import io.zeebe.servicecontainer.Service;
@@ -22,12 +30,6 @@ import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.ScheduledTimer;
 import io.zeebe.util.sched.future.ActorFuture;
 import org.slf4j.Logger;
-
-import java.time.Duration;
-import java.util.*;
-import java.util.function.Supplier;
-
-import static io.zeebe.broker.logstreams.processor.StreamProcessorIds.SYSTEM_CREATE_TOPIC_PROCESSOR_ID;
 
 public class OrchestrationService implements Service<OrchestrationService>, TypedEventProcessor<TopicEvent>
 {
@@ -52,6 +54,7 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
 
     private final Set<OrchestrationCommand> pendingCommands = new HashSet<>();
     private IdGenerator idGenerator;
+    private LogStreamWriter logStreamWriter;
 
     @Override
     public void onOpen(TypedStreamProcessor streamProcessor)
@@ -84,7 +87,8 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
         }
         else
         {
-            topicEvent.setState(TopicState.CREATED);
+            // TODO: this should be creating and created should be written after initial success
+            topicEvent.setState(TopicState.CREATING);
         }
     }
 
@@ -130,6 +134,8 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
             .onEvent(EventType.TOPIC_EVENT, TopicState.CREATE, this)
             .build();
 
+        logStreamWriter = new LogStreamWriterImpl();
+        logStreamWriter.wrap(partition.getLogStream());
 
         streamProcessorServiceFactory.createService(partition, leaderSystemPartitionInjector.getInjectedServiceName())
             .additionalDependencies(startContext.getServiceName())
@@ -213,7 +219,7 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
 
                     if (missingPartititons > 0)
                     {
-                        commands.add(new CreatePartitionCommand(topicName, topicInfo.getReplicationFactor(), missingPartititons, actor, idGenerator));
+                        commands.add(new CreatePartitionCommand(topicName, topicInfo.getReplicationFactor(), missingPartititons, actor, idGenerator, topicInfo.getPartitionCount()));
                     }
 
                     for (final Map.Entry<Integer, ClusterPartitionState> partitionState : partitionReplication.entrySet())
@@ -242,7 +248,7 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
         {
             if (!pendingCommands.contains(command))
             {
-                command.execute(managmentClientTransport, socketAddressSupplier);
+                command.execute(managmentClientTransport, socketAddressSupplier, logStreamWriter);
                 pendingCommands.add(command);
 
                 actor.runDelayed(PENDING_COMMAND_TIMEOUT, () ->

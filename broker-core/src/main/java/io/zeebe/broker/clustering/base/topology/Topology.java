@@ -65,7 +65,7 @@ public class Topology implements ReadableTopology
         {
             final NodeInfo current = members.get(i);
 
-            if (current.getApiPort().equals(apiAddress))
+            if (current.getManagementPort().equals(apiAddress))
             {
                 member = current;
             }
@@ -169,7 +169,7 @@ public class Topology implements ReadableTopology
             partitions.put(paritionId, partition);
         }
 
-        LOG.debug("Updating partition information for parition {}", partition);
+        LOG.debug("Updating partition information for parition {} and state {}", partition, state);
 
         if (state != null)
         {
