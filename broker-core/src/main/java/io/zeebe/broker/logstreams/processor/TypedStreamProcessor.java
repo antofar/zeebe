@@ -96,6 +96,12 @@ public class TypedStreamProcessor implements StreamProcessor
     }
 
     @Override
+    public void onRecovered()
+    {
+        lifecycleListeners.forEach(e -> e.onRecovered());
+    }
+
+    @Override
     public void onClose()
     {
         lifecycleListeners.forEach(e -> e.onClose());

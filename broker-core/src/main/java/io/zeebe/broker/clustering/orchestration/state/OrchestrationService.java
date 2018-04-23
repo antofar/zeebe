@@ -57,12 +57,15 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
     public void onOpen(TypedStreamProcessor streamProcessor)
     {
         actor = streamProcessor.getActor();
-
-        // TODO: we should scheduler the timer only AFTER the recovery / reprocessing has been done.
-        // Idea: We could create a new "onRecovered()" callback
-        actor.runAtFixedRate(Duration.ofSeconds(1), this::checkCurrentState);
-
         LOG.debug("Orchestration service log stream processor open");
+    }
+
+    @Override
+    public void onRecovered()
+    {
+        final Duration delay = Duration.ofSeconds(1);
+        scheduledTimer = actor.runAtFixedRate(delay, this::checkCurrentState);
+        LOG.debug("Orchestration service schedules current state check every {}", delay);
     }
 
     @Override

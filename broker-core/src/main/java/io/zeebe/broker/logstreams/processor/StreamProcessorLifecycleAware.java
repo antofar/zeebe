@@ -25,6 +25,11 @@ public interface StreamProcessorLifecycleAware
 
     };
 
+    default void onRecovered()
+    {
+
+    }
+
     default void onClose()
     {
     };
