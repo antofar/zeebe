@@ -1,24 +1,23 @@
 package io.zeebe.broker.clustering.orchestration.state;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.base.partitions.Partition;
-import io.zeebe.broker.logstreams.processor.StreamProcessorIds;
-import io.zeebe.broker.logstreams.processor.StreamProcessorServiceFactory;
-import io.zeebe.broker.logstreams.processor.TypedStreamEnvironment;
-import io.zeebe.broker.logstreams.processor.TypedStreamProcessor;
+import io.zeebe.broker.logstreams.processor.*;
 import io.zeebe.broker.system.log.TopicState;
 import io.zeebe.protocol.clientapi.EventType;
 import io.zeebe.servicecontainer.Injector;
 import io.zeebe.servicecontainer.Service;
 import io.zeebe.servicecontainer.ServiceStartContext;
 import io.zeebe.transport.ServerTransport;
+import io.zeebe.util.sched.ActorControl;
+import io.zeebe.util.sched.future.ActorFuture;
 import org.agrona.DirectBuffer;
 import org.slf4j.Logger;
 
-public class ClusterTopicState implements Service<ClusterTopicState>
+import java.util.HashMap;
+import java.util.Map;
+
+public class ClusterTopicState implements Service<ClusterTopicState>, StreamProcessorLifecycleAware
 {
     private static final Logger LOG = Loggers.ORCHESTRATION_LOGGER;
 
@@ -30,6 +29,7 @@ public class ClusterTopicState implements Service<ClusterTopicState>
     private final TopicCreatedProcessor topicCreatedProcessor;
 
     private final Map<DirectBuffer, TopicInfo> topicState = new HashMap<>();
+    private ActorControl actor;
 
     public ClusterTopicState()
     {
@@ -71,6 +71,12 @@ public class ClusterTopicState implements Service<ClusterTopicState>
     }
 
     @Override
+    public void onOpen(TypedStreamProcessor streamProcessor)
+    {
+        actor = streamProcessor.getActor();
+    }
+
+    @Override
     public void start(final ServiceStartContext startContext)
     {
         final Partition partition = partitionInjector.getValue();
@@ -81,6 +87,7 @@ public class ClusterTopicState implements Service<ClusterTopicState>
             .newStreamProcessor()
             .onEvent(EventType.TOPIC_EVENT, TopicState.CREATE, topicCreateProcessor)
             .onEvent(EventType.TOPIC_EVENT, TopicState.CREATED, topicCreatedProcessor)
+            .withListener(this)
             .build();
 
         streamProcessorServiceFactory.createService(partition, partitionInjector.getInjectedServiceName())
@@ -105,5 +112,11 @@ public class ClusterTopicState implements Service<ClusterTopicState>
     {
         return streamProcessorServiceFactoryInjector;
     }
+
+    public ActorFuture<Map<DirectBuffer, TopicInfo>> getDesiredState()
+    {
+        return actor.call(() -> topicState);
+    }
+
 
 }
