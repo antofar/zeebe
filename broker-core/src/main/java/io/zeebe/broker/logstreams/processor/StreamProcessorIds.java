@@ -39,4 +39,6 @@ public class StreamProcessorIds
 
     public static final int SYSTEM_CREATE_TOPIC_PROCESSOR_ID = 1000;
     public static final int SYSTEM_COLLECT_PARTITION_PROCESSOR_ID = 1001;
+
+    public static final int CLUSTER_TOPIC_STATE = 2000;
 }

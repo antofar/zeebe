@@ -28,4 +28,6 @@ public class Loggers
     public static final Logger SYSTEM_LOGGER = new ZbLogger("io.zeebe.broker.system");
     public static final Logger TRANSPORT_LOGGER = new ZbLogger("io.zeebe.broker.transport");
 
+    public static final Logger ORCHESTRATION_LOGGER = new ZbLogger("io.zeebe.broker.orchestration");
+
 }

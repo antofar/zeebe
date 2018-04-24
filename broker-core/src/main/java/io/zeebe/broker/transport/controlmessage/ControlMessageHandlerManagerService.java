@@ -75,6 +75,7 @@ public class ControlMessageHandlerManagerService implements Service<ControlMessa
             new RemoveTopicSubscriptionHandler(output, topicSubscriptionService),
             new RequestTopologyHandler(output, topologyManagerInjector.getValue()),
             new RequestPartitionsMessageHandler(output, systemPartitionManager)
+            // TODO(menski): register topics requests handler
         );
 
         service = new ControlMessageHandlerManager(

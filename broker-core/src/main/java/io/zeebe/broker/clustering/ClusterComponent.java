@@ -17,6 +17,7 @@
  */
 package io.zeebe.broker.clustering;
 
+import static io.zeebe.broker.clustering.orchestration.ClusterOrchestrationLayerSerivceNames.CLUSTER_TOPIC_STATE_INSTALL_SERVICE_NAME;
 import static io.zeebe.broker.transport.TransportServiceNames.*;
 
 import io.zeebe.broker.Loggers;
@@ -27,6 +28,7 @@ import io.zeebe.broker.clustering.base.gossip.GossipJoinService;
 import io.zeebe.broker.clustering.base.gossip.GossipService;
 import io.zeebe.broker.clustering.base.raft.config.RaftPersistentConfigurationManagerService;
 import io.zeebe.broker.clustering.base.topology.TopologyManagerService;
+import io.zeebe.broker.clustering.orchestration.ClusterTopicStateInstallService;
 import io.zeebe.broker.logstreams.cfg.LogStreamsCfg;
 
 import static io.zeebe.broker.clustering.base.ClusterBaseLayerServiceNames.*;
@@ -56,11 +58,12 @@ public class ClusterComponent implements Component
         final GlobalConfiguration globalCfg = configurationManager.readEntry("global", GlobalConfiguration.class);
         final LogStreamsCfg logsCfg = configurationManager.readEntry("logs", LogStreamsCfg.class);
 
-        initClusteringBaseLayer(context, serviceContainer, transportCfg, logsCfg);
+        initClusterBaseLayer(context, serviceContainer, transportCfg, logsCfg);
         initBootstrapSystemPartition(context, serviceContainer, globalCfg);
+        initClusterOrchestrationLayer(serviceContainer);
     }
 
-    private void initClusteringBaseLayer(final SystemContext context, final ServiceContainer serviceContainer, final TransportComponentCfg config, LogStreamsCfg logsCfg)
+    private void initClusterBaseLayer(final SystemContext context, final ServiceContainer serviceContainer, final TransportComponentCfg config, LogStreamsCfg logsCfg)
     {
         final CompositeServiceBuilder baseLayerInstall = serviceContainer.createComposite(CLUSTERING_BASE_LAYER);
 
@@ -154,5 +157,14 @@ public class ClusterComponent implements Component
                     .install();
             }
         }
+    }
+
+    private void initClusterOrchestrationLayer(final ServiceContainer serviceContainer)
+    {
+        final ClusterTopicStateInstallService clusterTopicStateInstallService = new ClusterTopicStateInstallService();
+
+        serviceContainer.createService(CLUSTER_TOPIC_STATE_INSTALL_SERVICE_NAME, clusterTopicStateInstallService)
+                        .groupReference(LEADER_PARTITION_SYSTEM_GROUP_NAME, clusterTopicStateInstallService.getSystemLeaderGroupReference())
+                        .install();
     }
 }

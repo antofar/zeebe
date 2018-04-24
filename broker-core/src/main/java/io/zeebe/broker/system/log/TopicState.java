@@ -21,6 +21,7 @@ public enum TopicState
 {
 
     CREATE,
+    CREATING,
     CREATE_REJECTED,
     CREATED
 }

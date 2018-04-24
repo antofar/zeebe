@@ -15,6 +15,7 @@
  */
 package io.zeebe.broker.it.topic;
 
+import static io.zeebe.test.util.TestUtil.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
@@ -23,6 +24,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import io.zeebe.client.clustering.impl.BrokerPartitionState;
+import io.zeebe.client.clustering.impl.TopologyResponse;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -86,11 +89,20 @@ public class CreateTopicTest
     }
 
     @Test
-    public void shouldRequestTopics()
+    public void shouldRequestTopics() throws InterruptedException
     {
         // given
         final TopicsClient topics = clientRule.topics();
-        topics.create("foo", 2).execute();
+        final Event topicEvent = topics.create("foo", 2).execute();
+
+        assertThat(topicEvent.getState()).isEqualTo("CREATED");
+
+        waitUntil(() ->
+            clientRule.getClient().requestTopology().execute().getBrokers().stream()
+                      .flatMap(b -> b.getPartitions().stream())
+                      .map(BrokerPartitionState::getTopicName)
+                      .filter(n -> n.equals("foo")).count() >= 2
+        );
 
         // when
         final Topics returnedTopics = clientRule.topics().getTopics().execute();
@@ -105,6 +117,7 @@ public class CreateTopicTest
         assertThat(topicsByName.get("foo")).hasSize(2);
         assertThat(topicsByName.get(ClientRule.DEFAULT_TOPIC)).hasSize(1);
 
+        Thread.sleep(2000);
     }
 
 }
