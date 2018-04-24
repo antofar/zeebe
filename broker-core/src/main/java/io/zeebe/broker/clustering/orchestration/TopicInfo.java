@@ -1,28 +1,30 @@
 package io.zeebe.broker.clustering.orchestration;
 
+import io.zeebe.broker.system.log.TopicEvent;
+import io.zeebe.util.buffer.BufferUtil;
+import org.agrona.DirectBuffer;
+
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
-import io.zeebe.broker.system.log.TopicEvent;
-
 public class TopicInfo
 {
 
-    private final TopicName topicName;
-    private int partitionCount;
-    private int replicationFactor;
+    private final DirectBuffer topicName;
+    private final int partitionCount;
+    private final int replicationFactor;
     private Set<Integer> partitionIds = new HashSet<>();
 
     public TopicInfo(final TopicEvent event)
     {
-        this.topicName = new TopicName(event.getName());
+        this.topicName = BufferUtil.cloneBuffer(event.getName());
         this.partitionCount = event.getPartitions();
         this.replicationFactor = event.getReplicationFactor();
         event.getPartitionIds().forEach(id -> partitionIds.add(id.getValue()));
     }
 
-    public TopicName getTopicName()
+    public DirectBuffer getTopicName()
     {
         return topicName;
     }

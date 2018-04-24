@@ -29,7 +29,7 @@ public class ClusterTopicState implements Service<ClusterTopicState>
     private final TopicCreateProcessor topicCreateProcessor;
     private final TopicCreatedProcessor topicCreatedProcessor;
 
-    private final Map<TopicName, TopicInfo> topicState = new HashMap<>();
+    private final Map<DirectBuffer, TopicInfo> topicState = new HashMap<>();
 
     public ClusterTopicState()
     {
