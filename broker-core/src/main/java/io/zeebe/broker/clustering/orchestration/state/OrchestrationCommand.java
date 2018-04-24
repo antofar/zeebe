@@ -1,13 +1,14 @@
 package io.zeebe.broker.clustering.orchestration.state;
 
+import io.zeebe.logstreams.log.LogStreamWriter;
+import io.zeebe.transport.ClientTransport;
+import io.zeebe.transport.RemoteAddress;
+import io.zeebe.transport.SocketAddress;
+import io.zeebe.util.sched.ActorControl;
+
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
-import java.util.function.Supplier;
-
-import io.zeebe.logstreams.log.LogStreamWriter;
-import io.zeebe.transport.*;
-import io.zeebe.util.sched.ActorControl;
+import java.util.function.BiFunction;
 
 public abstract class OrchestrationCommand
 {
@@ -37,5 +38,5 @@ public abstract class OrchestrationCommand
         return remoteAddresses;
     }
 
-    public abstract void execute(ClientTransport serverOutput, Function<SocketAddress, SocketAddress> addressSupplier, LogStreamWriter logStreamWriter);
+    public abstract void execute(ClientTransport serverOutput, BiFunction<SocketAddress, Integer, List<SocketAddress>> addressSupplier, LogStreamWriter logStreamWriter);
 }

@@ -1,7 +1,9 @@
 package io.zeebe.broker.clustering.orchestration.state;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -26,45 +28,38 @@ public class InviteMemberCommand extends OrchestrationCommand
     }
 
     @Override
-    public void execute(ClientTransport clientTransport, Function<SocketAddress, SocketAddress> addressSupplier, LogStreamWriter logStreamWriter)
+    public void execute(ClientTransport clientTransport, BiFunction<SocketAddress, Integer, List<SocketAddress>> addressSupplier, LogStreamWriter logStreamWriter)
     {
         Loggers.CLUSTERING_LOGGER.debug("Executing orchestration command: {}", this);
+        final List<SocketAddress> socketAddresses = addressSupplier.apply(leader.getManagementPort(), count);
         for (int i = 0; i < count; i++)
         {
+            final SocketAddress socketAddress = socketAddresses.get(i);
             // TODO: remove hack
-            final SocketAddress socketAddress = addressSupplier.apply(leader.getManagementPort());
-            if (socketAddress != null)
+            final RemoteAddress remoteAddress = clientTransport.registerRemoteAddress(socketAddress);
+
+            remoteAddresses.add(remoteAddress);
+
+            final InvitationRequest request = new InvitationRequest()
+                .topicName(BufferUtil.wrapString(topicName))
+                .partitionId(partitionId)
+                .replicationFactor(replicationFactor)
+                .members(Collections.singletonList(leader.getReplicationPort()));
+
+            // TODO: think about error handling, maybe not
+            final ActorFuture<ClientResponse> responseFuture = clientTransport.getOutput().sendRequest(remoteAddress, request);
+
+            actor.runOnCompletion(responseFuture, (createPartitionResponse, createPartitionError) ->
             {
-                final RemoteAddress remoteAddress = clientTransport.registerRemoteAddress(socketAddress);
-
-                remoteAddresses.add(remoteAddress);
-
-                final InvitationRequest request = new InvitationRequest()
-                    .topicName(BufferUtil.wrapString(topicName))
-                    .partitionId(partitionId)
-                    .replicationFactor(replicationFactor)
-                    .members(Collections.singletonList(leader.getReplicationPort()));
-
-                // TODO: think about error handling, maybe not
-                final ActorFuture<ClientResponse> responseFuture = clientTransport.getOutput().sendRequest(remoteAddress, request);
-
-                actor.runOnCompletion(responseFuture, (createPartitionResponse, createPartitionError) ->
+                if (createPartitionError != null)
                 {
-                    if (createPartitionError != null)
-                    {
-                        Loggers.CLUSTERING_LOGGER.error("Error while inviting member {} to partition {}", socketAddress, partitionId, createPartitionError);
-                    }
-                    else
-                    {
-                        Loggers.CLUSTERING_LOGGER.debug("Invited member {} to partition {}.", socketAddress, partitionId);
-                    }
-                });
-            }
-            else
-            {
-                Loggers.CLUSTERING_LOGGER.warn("Address supplier is unable to provide next socket address");
-            }
-
+                    Loggers.CLUSTERING_LOGGER.error("Error while inviting member {} to partition {}", socketAddress, partitionId, createPartitionError);
+                }
+                else
+                {
+                    Loggers.CLUSTERING_LOGGER.debug("Invited member {} to partition {}.", socketAddress, partitionId);
+                }
+            });
         }
     }
 

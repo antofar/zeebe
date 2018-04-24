@@ -1,6 +1,7 @@
 package io.zeebe.broker.clustering.orchestration.state;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import io.zeebe.broker.clustering.base.topology.NodeInfo;
 import io.zeebe.transport.SocketAddress;
@@ -35,25 +36,26 @@ public class ClusterTopicState
         brokerUsage.putIfAbsent(socketAddress, 0);
     }
 
-    public SocketAddress nextSocketAddress(final SocketAddress skipAddress)
+    public List<SocketAddress> nextSocketAddress(final SocketAddress skipAddress, int count)
     {
-        final Optional<SocketAddress> nextAddress = brokerUsage.entrySet()
-                                                               .stream()
-                                                               .filter(e -> !e.getKey().equals(skipAddress))
-                                                               .sorted(Comparator.comparing(Map.Entry::getValue))
-                                                               .map(Map.Entry::getKey)
-                                                               .findFirst();
 
-        if (nextAddress.isPresent())
+        final List<SocketAddress> socketAddresses = new ArrayList<>(count);
+        int neededAddresses = count;
+        while (socketAddresses.size() < count)
         {
-            final SocketAddress address = nextAddress.get();
-            increaseBrokerUsage(address);
-            return address;
+            final List<SocketAddress> addresses = brokerUsage.entrySet()
+                .stream()
+                .filter(e -> !e.getKey().equals(skipAddress))
+                .sorted(Comparator.comparing(Map.Entry::getValue))
+                .map(Map.Entry::getKey)
+                .distinct()
+                .limit(neededAddresses)
+                .collect(Collectors.toList());
+            neededAddresses -= addresses.size();
+            socketAddresses.addAll(addresses);
         }
-        else
-        {
-            return null;
-        }
+
+        return socketAddresses;
     }
 
     public Map<Integer, ClusterPartitionState> getPartitionReplications(String topicName)

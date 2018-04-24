@@ -1,6 +1,8 @@
 package io.zeebe.broker.clustering.orchestration.state;
 
+import java.util.List;
 import java.util.Objects;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -37,98 +39,92 @@ public class CreatePartitionCommand extends OrchestrationCommand
 
 
     @Override
-    public void execute(final ClientTransport clientTransport, final Function<SocketAddress, SocketAddress> addressSupplier, LogStreamWriter logStreamWriter)
+    public void execute(final ClientTransport clientTransport, final BiFunction<SocketAddress, Integer, List<SocketAddress>> addressSupplier, LogStreamWriter logStreamWriter)
     {
         Loggers.CLUSTERING_LOGGER.debug("Executing orchestration command: {}", this);
+        final List<SocketAddress> socketAddresses = addressSupplier.apply(null, count);
         for (int i = 0; i < count; i++)
         {
+            final SocketAddress socketAddress = socketAddresses.get(i);
             actor.runOnCompletion(idGenerator.nextId(), (partitionId, throwable) ->
             {
                 if (throwable == null)
                 {
-                    final SocketAddress socketAddress = addressSupplier.apply(null);
-                    if (socketAddress != null)
+                    final RemoteAddress remoteAddress = clientTransport.registerRemoteAddress(socketAddress);
+
+                    remoteAddresses.add(remoteAddress);
+
+                    Loggers.CLUSTERING_LOGGER.debug("Send create partition request to {} with partition id {}", socketAddress, partitionId);
+
+                    final DirectBuffer topicNameBuffer = BufferUtil.wrapString(this.topicName);
+                    final CreatePartitionRequest request = new CreatePartitionRequest().topicName(topicNameBuffer)
+                                                                                       .partitionId(partitionId)
+                                                                                       .replicationFactor(replicationFactor);
+
+                    //                    final TransportMessage message = new TransportMessage().remoteAddress(remoteAddress).writer(request);
+                    // TODO: think about error handling, maybe not
+                    //                    clientTransport.getOutput().sendMessage(message);
+
+                    // TODO: message or request?
+                    final ActorFuture<ClientResponse> responseFuture = clientTransport.getOutput().sendRequest(remoteAddress, request);
+
+                    actor.runOnCompletion(responseFuture, (createPartitionResponse, createPartitionError) ->
                     {
-                        final RemoteAddress remoteAddress = clientTransport.registerRemoteAddress(socketAddress);
-
-                        remoteAddresses.add(remoteAddress);
-
-                        Loggers.CLUSTERING_LOGGER.debug("Send create partition request to {} with partition id {}", socketAddress, partitionId);
-
-                        final DirectBuffer topicNameBuffer = BufferUtil.wrapString(this.topicName);
-                        final CreatePartitionRequest request = new CreatePartitionRequest().topicName(topicNameBuffer)
-                                                                                           .partitionId(partitionId)
-                                                                                           .replicationFactor(replicationFactor);
-
-                        //                    final TransportMessage message = new TransportMessage().remoteAddress(remoteAddress).writer(request);
-                        // TODO: think about error handling, maybe not
-                        //                    clientTransport.getOutput().sendMessage(message);
-
-                        // TODO: message or request?
-                        final ActorFuture<ClientResponse> responseFuture = clientTransport.getOutput().sendRequest(remoteAddress, request);
-
-                        actor.runOnCompletion(responseFuture, (createPartitionResponse, createPartitionError) ->
+                        if (createPartitionError != null)
                         {
-                            if (createPartitionError != null)
-                            {
-                                Loggers.CLUSTERING_LOGGER.error("Error while creating partition {}", partitionId, createPartitionError);
-                            }
-                            else
-                            {
-                                // TODO: do not do this HELP!!!
-                                BrokerEventMetadata metadata = new BrokerEventMetadata();
-                                metadata.eventType(EventType.PARTITION_EVENT);
+                            Loggers.CLUSTERING_LOGGER.error("Error while creating partition {}", partitionId, createPartitionError);
+                        }
+                        else
+                        {
+                            // TODO: do not do this HELP!!!
+                            BrokerEventMetadata metadata = new BrokerEventMetadata();
+                            metadata.eventType(EventType.PARTITION_EVENT);
 
-                                final PartitionEvent event = new PartitionEvent();
-                                event.setParitionId(partitionId);
-                                event.setReplicationFactor(replicationFactor);
-                                event.setTopicName(BufferUtil.wrapString(topicName));
-                                event.setCreator(socketAddress.getHostBuffer(), socketAddress.port());
-                                event.setState(PartitionState.CREATED);
+                            final PartitionEvent event = new PartitionEvent();
+                            event.setParitionId(partitionId);
+                            event.setReplicationFactor(replicationFactor);
+                            event.setTopicName(BufferUtil.wrapString(topicName));
+                            event.setCreator(socketAddress.getHostBuffer(), socketAddress.port());
+                            event.setState(PartitionState.CREATED);
 
-                                long position;
+                            long position;
+                            do {
+                                position = logStreamWriter
+                                    .valueWriter(event)
+                                    .metadataWriter(metadata)
+                                    .positionAsKey()
+                                    .tryWrite();
+                                Loggers.CLUSTERING_LOGGER.error("HELP: {}", position);
+                            } while (position < 0);
+
+                            completedPartitions++;
+                            Loggers.CLUSTERING_LOGGER.debug("Partition {} creation successful.", partitionId);
+
+                            if (completedPartitions == count)
+                            {
+                                // TODO: THIS IS EVEN WORSE
+                                metadata = new BrokerEventMetadata();
+                                metadata.eventType(EventType.TOPIC_EVENT);
+
+                                final TopicEvent topicEvent = new TopicEvent();
+                                topicEvent.setState(TopicState.CREATED);
+                                topicEvent.setName(BufferUtil.wrapString(topicName));
+                                topicEvent.setPartitions(partitions);
+                                topicEvent.setReplicationFactor(replicationFactor);
+
                                 do {
                                     position = logStreamWriter
-                                        .valueWriter(event)
+                                        .valueWriter(topicEvent)
                                         .metadataWriter(metadata)
                                         .positionAsKey()
                                         .tryWrite();
-                                    Loggers.CLUSTERING_LOGGER.error("HELP: {}", position);
+                                    Loggers.CLUSTERING_LOGGER.error("HELP2: {}", position);
                                 } while (position < 0);
 
-                                completedPartitions++;
-                                Loggers.CLUSTERING_LOGGER.debug("Partition {} creation successful.", partitionId);
-
-                                if (completedPartitions == count)
-                                {
-                                    // TODO: THIS IS EVEN WORSE
-                                    metadata = new BrokerEventMetadata();
-                                    metadata.eventType(EventType.TOPIC_EVENT);
-
-                                    final TopicEvent topicEvent = new TopicEvent();
-                                    topicEvent.setState(TopicState.CREATED);
-                                    topicEvent.setName(BufferUtil.wrapString(topicName));
-                                    topicEvent.setPartitions(partitions);
-                                    topicEvent.setReplicationFactor(replicationFactor);
-
-                                    do {
-                                        position = logStreamWriter
-                                            .valueWriter(topicEvent)
-                                            .metadataWriter(metadata)
-                                            .positionAsKey()
-                                            .tryWrite();
-                                        Loggers.CLUSTERING_LOGGER.error("HELP2: {}", position);
-                                    } while (position < 0);
-
-                                    Loggers.CLUSTERING_LOGGER.debug("Topic {} with {} partitions creation successful.", topicName, partitions);
-                                }
+                                Loggers.CLUSTERING_LOGGER.debug("Topic {} with {} partitions creation successful.", topicName, partitions);
                             }
-                        });
-                    }
-                    else
-                    {
-                        Loggers.CLUSTERING_LOGGER.warn("Address supplier is unable to provide next socket address");
-                    }
+                        }
+                    });
                 }
                 else
                 {

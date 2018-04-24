@@ -15,6 +15,7 @@
  */
 package io.zeebe.broker.it.clustering;
 
+import io.zeebe.broker.Loggers;
 import io.zeebe.broker.it.ClientRule;
 import io.zeebe.client.ZeebeClient;
 import io.zeebe.client.clustering.impl.TopologyBroker;
@@ -74,6 +75,8 @@ public class CreateTopicClusteredTest
         // then
         assertThat(topic.getName()).isEqualTo("foo");
         assertThat(topic.getPartitions().size()).isEqualTo(PARTITION_COUNT);
+
+        Loggers.CLUSTERING_LOGGER.debug("Topology: {}", clientRule.getClient().requestTopology().execute());
     }
 
     @Test

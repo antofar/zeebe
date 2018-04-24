@@ -4,6 +4,7 @@ import static io.zeebe.broker.logstreams.processor.StreamProcessorIds.SYSTEM_CRE
 
 import java.time.Duration;
 import java.util.*;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -242,7 +243,7 @@ public class OrchestrationService implements Service<OrchestrationService>, Type
         });
     }
 
-    private void executeCommands(final Function<SocketAddress, SocketAddress> socketAddressSupplier, final List<OrchestrationCommand> commands)
+    private void executeCommands(final BiFunction<SocketAddress, Integer, List<SocketAddress>> socketAddressSupplier, final List<OrchestrationCommand> commands)
     {
 
         for (final OrchestrationCommand command : commands)
