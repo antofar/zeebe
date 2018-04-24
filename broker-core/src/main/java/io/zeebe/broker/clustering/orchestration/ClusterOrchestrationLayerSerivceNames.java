@@ -1,5 +1,6 @@
 package io.zeebe.broker.clustering.orchestration;
 
+import io.zeebe.broker.clustering.orchestration.state.ClusterTopicState;
 import io.zeebe.servicecontainer.ServiceName;
 
 public class ClusterOrchestrationLayerSerivceNames

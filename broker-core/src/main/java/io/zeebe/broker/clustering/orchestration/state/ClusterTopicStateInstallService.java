@@ -1,4 +1,4 @@
-package io.zeebe.broker.clustering.orchestration;
+package io.zeebe.broker.clustering.orchestration.state;
 
 import static io.zeebe.broker.clustering.orchestration.ClusterOrchestrationLayerSerivceNames.CLUSTER_TOPIC_STATE_SERVICE_NAME;
 import static io.zeebe.broker.logstreams.LogStreamServiceNames.STREAM_PROCESSOR_SERVICE_FACTORY;

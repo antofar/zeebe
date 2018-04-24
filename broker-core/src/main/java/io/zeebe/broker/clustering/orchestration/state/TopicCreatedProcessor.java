@@ -1,4 +1,4 @@
-package io.zeebe.broker.clustering.orchestration;
+package io.zeebe.broker.clustering.orchestration.state;
 
 import java.util.function.Consumer;
 import java.util.function.Predicate;

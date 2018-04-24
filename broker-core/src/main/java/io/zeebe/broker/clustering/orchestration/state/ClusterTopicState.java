@@ -1,4 +1,4 @@
-package io.zeebe.broker.clustering.orchestration;
+package io.zeebe.broker.clustering.orchestration.state;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -68,7 +68,6 @@ public class ClusterTopicState implements Service<ClusterTopicState>
             LOG.warn("Topic not found in state: {}", topicInfo);
             updateTopicState(topicInfo);
         }
-
     }
 
     @Override

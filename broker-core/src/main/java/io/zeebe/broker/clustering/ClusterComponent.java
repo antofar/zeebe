@@ -28,7 +28,7 @@ import io.zeebe.broker.clustering.base.gossip.GossipJoinService;
 import io.zeebe.broker.clustering.base.gossip.GossipService;
 import io.zeebe.broker.clustering.base.raft.config.RaftPersistentConfigurationManagerService;
 import io.zeebe.broker.clustering.base.topology.TopologyManagerService;
-import io.zeebe.broker.clustering.orchestration.ClusterTopicStateInstallService;
+import io.zeebe.broker.clustering.orchestration.state.ClusterTopicStateInstallService;
 import io.zeebe.broker.logstreams.cfg.LogStreamsCfg;
 
 import static io.zeebe.broker.clustering.base.ClusterBaseLayerServiceNames.*;

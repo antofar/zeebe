@@ -1,4 +1,4 @@
-package io.zeebe.broker.clustering.orchestration;
+package io.zeebe.broker.clustering.orchestration.state;
 
 import io.zeebe.broker.system.log.TopicEvent;
 import io.zeebe.util.buffer.BufferUtil;

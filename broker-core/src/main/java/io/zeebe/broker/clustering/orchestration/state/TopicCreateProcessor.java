@@ -1,4 +1,4 @@
-package io.zeebe.broker.clustering.orchestration;
+package io.zeebe.broker.clustering.orchestration.state;
 
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.logstreams.processor.*;
