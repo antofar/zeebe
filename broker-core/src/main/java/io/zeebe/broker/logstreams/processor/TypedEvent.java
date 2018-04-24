@@ -18,7 +18,7 @@
 package io.zeebe.broker.logstreams.processor;
 
 import io.zeebe.msgpack.UnpackedObject;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
+import io.zeebe.protocol.impl.RecordMetadata;
 
 public interface TypedEvent<T extends UnpackedObject>
 {
@@ -28,7 +28,7 @@ public interface TypedEvent<T extends UnpackedObject>
 
     long getKey();
 
-    BrokerEventMetadata getMetadata();
+    RecordMetadata getMetadata();
 
     T getValue();
 }

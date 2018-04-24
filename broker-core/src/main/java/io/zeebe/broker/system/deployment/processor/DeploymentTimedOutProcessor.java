@@ -30,7 +30,7 @@ import io.zeebe.broker.system.deployment.data.PendingWorkflows.PendingWorkflow;
 import io.zeebe.broker.system.deployment.data.PendingWorkflows.PendingWorkflowIterator;
 import io.zeebe.broker.system.deployment.handler.DeploymentTimer;
 import io.zeebe.broker.workflow.data.*;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
+import io.zeebe.protocol.impl.RecordMetadata;
 import org.agrona.collections.LongArrayList;
 import org.slf4j.Logger;
 
@@ -123,9 +123,9 @@ public class DeploymentTimedOutProcessor implements TypedEventProcessor<Deployme
         }
     }
 
-    private Consumer<BrokerEventMetadata> copyRequestMetadata(TypedEvent<DeploymentEvent> event)
+    private Consumer<RecordMetadata> copyRequestMetadata(TypedEvent<DeploymentEvent> event)
     {
-        final BrokerEventMetadata metadata = event.getMetadata();
+        final RecordMetadata metadata = event.getMetadata();
         return m -> m
                 .requestId(metadata.getRequestId())
                 .requestStreamId(metadata.getRequestStreamId());

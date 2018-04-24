@@ -464,7 +464,7 @@ public class WorkflowInstanceFunctionalTest
 
         final ExecuteCommandResponse deploymentResp = apiRule.createCmdRequest()
                 .partitionId(Protocol.SYSTEM_PARTITION)
-                .eventType(EventType.DEPLOYMENT_EVENT)
+                .valueType(EventType.DEPLOYMENT_EVENT)
                 .command()
                 .put(PROP_STATE, "CREATE")
                 .put("topicName", ClientApiRule.DEFAULT_TOPIC_NAME)

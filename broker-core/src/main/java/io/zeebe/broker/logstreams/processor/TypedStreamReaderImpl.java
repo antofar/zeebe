@@ -27,14 +27,14 @@ import io.zeebe.logstreams.log.LogStreamReader;
 import io.zeebe.logstreams.log.LoggedEvent;
 import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.protocol.clientapi.EventType;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
+import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.util.ReflectUtil;
 
 public class TypedStreamReaderImpl implements TypedStreamReader
 {
     protected final LogStreamReader reader;
     protected final TypedEventImpl event = new TypedEventImpl();
-    protected final BrokerEventMetadata metadata = new BrokerEventMetadata();
+    protected final RecordMetadata metadata = new RecordMetadata();
     protected final Map<Class<? extends UnpackedObject>, UnpackedObject> eventCache;
 
     public TypedStreamReaderImpl(LogStream stream, EnumMap<EventType, Class<? extends UnpackedObject>> eventRegistry)

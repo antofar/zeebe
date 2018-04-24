@@ -21,7 +21,7 @@ import io.zeebe.broker.logstreams.processor.TypedEvent;
 import io.zeebe.broker.logstreams.processor.TypedEventImpl;
 import io.zeebe.logstreams.log.LoggedEvent;
 import io.zeebe.msgpack.UnpackedObject;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
+import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.util.ReflectUtil;
 
 public class CopiedTypedEvent extends TypedEventImpl
@@ -57,7 +57,7 @@ public class CopiedTypedEvent extends TypedEventImpl
     }
 
     @Override
-    public BrokerEventMetadata getMetadata()
+    public RecordMetadata getMetadata()
     {
         throw new UnsupportedOperationException("not implemented yet; be the change you want to see in the world");
     }

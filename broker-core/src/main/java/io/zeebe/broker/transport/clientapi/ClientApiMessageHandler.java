@@ -32,7 +32,7 @@ import io.zeebe.logstreams.log.LogStreamWriterImpl;
 import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.protocol.Protocol;
 import io.zeebe.protocol.clientapi.*;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
+import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.transport.RemoteAddress;
 import io.zeebe.transport.ServerMessageHandler;
 import io.zeebe.transport.ServerOutput;
@@ -55,7 +55,7 @@ public class ClientApiMessageHandler implements ServerMessageHandler, ServerRequ
     protected final Consumer<Runnable> cmdConsumer = (c) -> c.run();
 
     protected final Int2ObjectHashMap<Partition> leaderPartitions = new Int2ObjectHashMap<>();
-    protected final BrokerEventMetadata eventMetadata = new BrokerEventMetadata();
+    protected final RecordMetadata eventMetadata = new RecordMetadata();
     protected final LogStreamWriter logStreamWriter = new LogStreamWriterImpl();
 
     protected final ErrorResponseWriter errorResponseWriter = new ErrorResponseWriter();
@@ -85,7 +85,7 @@ public class ClientApiMessageHandler implements ServerMessageHandler, ServerRequ
             final ServerOutput output,
             final RemoteAddress requestAddress,
             final long requestId,
-            final BrokerEventMetadata eventMetadata,
+            final RecordMetadata eventMetadata,
             final DirectBuffer buffer,
             final int messageOffset,
             final int messageLength)
@@ -134,7 +134,7 @@ public class ClientApiMessageHandler implements ServerMessageHandler, ServerRequ
                     .tryWriteResponseOrLogFailure(output, requestAddress.getStreamId(), requestId);
         }
 
-        eventMetadata.eventType(eventType);
+        eventMetadata.valueType(eventType);
 
         logStreamWriter.wrap(partition.getLogStream());
 
@@ -173,7 +173,7 @@ public class ClientApiMessageHandler implements ServerMessageHandler, ServerRequ
     }
 
     private boolean handleControlMessageRequest(
-            final BrokerEventMetadata eventMetadata,
+            final RecordMetadata eventMetadata,
             final DirectBuffer buffer,
             final int messageOffset,
             final int messageLength)

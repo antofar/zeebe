@@ -17,21 +17,25 @@
  */
 package io.zeebe.broker.logstreams.processor;
 
-import java.util.function.Consumer;
-
 import io.zeebe.msgpack.UnpackedObject;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
+import io.zeebe.protocol.clientapi.Intent;
 
 public interface TypedBatchWriter
 {
 
-    TypedBatchWriter addFollowUpEvent(long key, UnpackedObject event);
+    TypedBatchWriter addRejection(TypedEvent<? extends UnpackedObject> command);
 
-    TypedBatchWriter addFollowUpEvent(long key, UnpackedObject event, Consumer<BrokerEventMetadata> metadata);
+    TypedBatchWriter addCommand(Intent intent, UnpackedObject value);
+    TypedBatchWriter addCommand(long key, Intent intent, UnpackedObject value);
 
-    TypedBatchWriter addNewEvent(UnpackedObject event);
+    TypedBatchWriter addEvent(Intent intent, UnpackedObject value);
+    TypedBatchWriter addEvent(long key, Intent intent, UnpackedObject value);
 
-    TypedBatchWriter addNewEvent(UnpackedObject event, Consumer<BrokerEventMetadata> metadata);
+//    TypedBatchWriter addFollowUpRecord(long key, Intent intent, UnpackedObject value);
+//
+//    TypedBatchWriter addFollowUpRecord(long key, Intent intent, UnpackedObject value, Consumer<RecordMetadata> metadata);
+//
+//    TypedBatchWriter addNewRecord(Intent intent, UnpackedObject value);
 
     /**
      * @return position of new event, negative value on failure

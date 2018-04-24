@@ -19,7 +19,7 @@ package io.zeebe.broker.event.processor;
 
 import io.zeebe.broker.logstreams.processor.MetadataFilter;
 import io.zeebe.broker.logstreams.processor.NoopSnapshotSupport;
-import io.zeebe.broker.transport.clientapi.SubscribedEventWriter;
+import io.zeebe.broker.transport.clientapi.SubscribedRecordWriter;
 import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.logstreams.log.LogStreamReader;
 import io.zeebe.logstreams.log.LoggedEvent;
@@ -29,7 +29,7 @@ import io.zeebe.logstreams.processor.StreamProcessorContext;
 import io.zeebe.logstreams.spi.SnapshotSupport;
 import io.zeebe.protocol.clientapi.EventType;
 import io.zeebe.protocol.clientapi.SubscriptionType;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
+import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.util.collection.LongRingBuffer;
 import org.agrona.DirectBuffer;
 
@@ -38,7 +38,7 @@ import static io.zeebe.util.buffer.BufferUtil.cloneBuffer;
 public class TopicSubscriptionPushProcessor implements StreamProcessor, EventProcessor
 {
 
-    protected final BrokerEventMetadata metadata = new BrokerEventMetadata();
+    protected final RecordMetadata metadata = new RecordMetadata();
 
     protected LoggedEvent event;
 
@@ -50,7 +50,7 @@ public class TopicSubscriptionPushProcessor implements StreamProcessor, EventPro
     protected int logStreamPartitionId;
 
     protected final SnapshotSupport snapshotSupport = new NoopSnapshotSupport();
-    protected final SubscribedEventWriter channelWriter;
+    protected final SubscribedRecordWriter channelWriter;
 
     protected LongRingBuffer pendingEvents;
     private StreamProcessorContext context;
@@ -61,7 +61,7 @@ public class TopicSubscriptionPushProcessor implements StreamProcessor, EventPro
             long startPosition,
             DirectBuffer name,
             int prefetchCapacity,
-            SubscribedEventWriter channelWriter)
+            SubscribedRecordWriter channelWriter)
     {
         this.channelWriter = channelWriter;
         this.clientStreamId = clientStreamId;
@@ -141,7 +141,7 @@ public class TopicSubscriptionPushProcessor implements StreamProcessor, EventPro
 
         final boolean success = channelWriter
             .partitionId(logStreamPartitionId)
-            .eventType(metadata.getEventType())
+            .valueType(metadata.getEventType())
             .key(event.getKey())
             .position(event.getPosition())
             .subscriberKey(subscriberKey)

@@ -70,7 +70,7 @@ public class CreateDeploymentTest
         // when
         final ExecuteCommandResponse resp = apiRule.createCmdRequest()
                 .partitionId(Protocol.SYSTEM_PARTITION)
-                .eventType(EventType.DEPLOYMENT_EVENT)
+                .valueType(EventType.DEPLOYMENT_EVENT)
                 .command()
                     .put(PROP_STATE, "CREATE")
                     .put("topicName", ClientApiRule.DEFAULT_TOPIC_NAME)
@@ -137,7 +137,7 @@ public class CreateDeploymentTest
         // when
         final ExecuteCommandResponse resp = apiRule.createCmdRequest()
                 .partitionId(Protocol.SYSTEM_PARTITION)
-                .eventType(EventType.DEPLOYMENT_EVENT)
+                .valueType(EventType.DEPLOYMENT_EVENT)
                 .command()
                     .put(PROP_STATE, "CREATE")
                     .put("topicName", ClientApiRule.DEFAULT_TOPIC_NAME)
@@ -195,7 +195,7 @@ public class CreateDeploymentTest
         // when
         final ExecuteCommandResponse resp = apiRule.createCmdRequest()
                 .partitionId(Protocol.SYSTEM_PARTITION)
-                .eventType(EventType.DEPLOYMENT_EVENT)
+                .valueType(EventType.DEPLOYMENT_EVENT)
                 .command()
                     .put(PROP_STATE, "CREATE")
                     .put("topicName", ClientApiRule.DEFAULT_TOPIC_NAME)
@@ -254,7 +254,7 @@ public class CreateDeploymentTest
         // when
         final ExecuteCommandResponse resp = apiRule.createCmdRequest()
                 .partitionId(Protocol.SYSTEM_PARTITION)
-                .eventType(EventType.DEPLOYMENT_EVENT)
+                .valueType(EventType.DEPLOYMENT_EVENT)
                 .command()
                     .put(PROP_STATE, "CREATE")
                     .put("topicName", ClientApiRule.DEFAULT_TOPIC_NAME)
@@ -276,7 +276,7 @@ public class CreateDeploymentTest
         // when
         final ExecuteCommandResponse resp = apiRule.createCmdRequest()
                 .partitionId(Protocol.SYSTEM_PARTITION)
-                .eventType(EventType.DEPLOYMENT_EVENT)
+                .valueType(EventType.DEPLOYMENT_EVENT)
                 .command()
                     .put(PROP_STATE, "CREATE")
                     .put("topicName", ClientApiRule.DEFAULT_TOPIC_NAME)

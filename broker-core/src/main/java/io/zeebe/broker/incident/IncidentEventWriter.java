@@ -25,17 +25,17 @@ import io.zeebe.broker.workflow.data.WorkflowInstanceEvent;
 import io.zeebe.logstreams.log.LogStreamWriter;
 import io.zeebe.protocol.Protocol;
 import io.zeebe.protocol.clientapi.EventType;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
+import io.zeebe.protocol.impl.RecordMetadata;
 
 public class IncidentEventWriter
 {
     private static final String UNKNOWN_ERROR = "unknown";
 
-    private final BrokerEventMetadata incidentEventMetadata = new BrokerEventMetadata();
+    private final RecordMetadata incidentEventMetadata = new RecordMetadata();
     private final IncidentEvent incidentEvent = new IncidentEvent();
 
     private final WorkflowInstanceEvent workflowInstanceEvent;
-    private final BrokerEventMetadata failureEventMetadata;
+    private final RecordMetadata failureEventMetadata;
 
     private long failureEventPosition;
     private long activityInstanceKey;
@@ -43,7 +43,7 @@ public class IncidentEventWriter
     private ErrorType errorType;
     private String errorMessage;
 
-    public IncidentEventWriter(BrokerEventMetadata failureEventMetadata, WorkflowInstanceEvent workflowInstanceEvent)
+    public IncidentEventWriter(RecordMetadata failureEventMetadata, WorkflowInstanceEvent workflowInstanceEvent)
     {
         ensureNotNull("failure event metadata", failureEventMetadata);
         ensureNotNull("workflow instance event", workflowInstanceEvent);
@@ -94,7 +94,7 @@ public class IncidentEventWriter
 
         incidentEventMetadata.reset()
             .protocolVersion(Protocol.PROTOCOL_VERSION)
-            .eventType(EventType.INCIDENT_EVENT);
+            .valueType(EventType.INCIDENT_EVENT);
 
         incidentEvent.reset();
         incidentEvent

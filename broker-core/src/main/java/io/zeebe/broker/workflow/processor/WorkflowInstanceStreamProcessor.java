@@ -47,7 +47,7 @@ import io.zeebe.msgpack.el.*;
 import io.zeebe.msgpack.mapping.*;
 import io.zeebe.protocol.Protocol;
 import io.zeebe.protocol.clientapi.EventType;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
+import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.util.metrics.Metric;
 import io.zeebe.util.metrics.MetricsManager;
 import org.agrona.DirectBuffer;
@@ -93,8 +93,8 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessor
 
     // data //////////////////////////////////////////
 
-    protected final BrokerEventMetadata sourceEventMetadata = new BrokerEventMetadata();
-    protected final BrokerEventMetadata targetEventMetadata = new BrokerEventMetadata();
+    protected final RecordMetadata sourceEventMetadata = new RecordMetadata();
+    protected final RecordMetadata targetEventMetadata = new RecordMetadata();
 
     protected final WorkflowEvent workflowEvent = new WorkflowEvent();
     protected final WorkflowInstanceEvent workflowInstanceEvent = new WorkflowInstanceEvent();
@@ -400,7 +400,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessor
         targetEventMetadata.reset();
         targetEventMetadata
                 .protocolVersion(Protocol.PROTOCOL_VERSION)
-                .eventType(WORKFLOW_INSTANCE_EVENT);
+                .valueType(WORKFLOW_INSTANCE_EVENT);
 
         // don't forget to set the key or use positionAsKey
         return writer
@@ -414,7 +414,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessor
         targetEventMetadata.reset();
         targetEventMetadata
                 .protocolVersion(Protocol.PROTOCOL_VERSION)
-                .eventType(TASK_EVENT);
+                .valueType(TASK_EVENT);
 
         // don't forget to set the key or use positionAsKey
         return writer
@@ -465,7 +465,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessor
             targetEventMetadata.reset();
             targetEventMetadata
                     .protocolVersion(Protocol.PROTOCOL_VERSION)
-                    .eventType(EventType.WORKFLOW_EVENT);
+                    .valueType(EventType.WORKFLOW_EVENT);
 
             return writer
                     .key(eventKey)
@@ -535,7 +535,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessor
                 targetEventMetadata.reset();
                 targetEventMetadata
                     .protocolVersion(Protocol.PROTOCOL_VERSION)
-                    .eventType(EventType.WORKFLOW_EVENT);
+                    .valueType(EventType.WORKFLOW_EVENT);
 
                 logStreamBatchWriter.event()
                     .key(eventKey)
@@ -556,7 +556,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessor
 
         private void addWorkflowInstanceCancelEvents()
         {
-            targetEventMetadata.eventType(EventType.WORKFLOW_INSTANCE_EVENT);
+            targetEventMetadata.valueType(EventType.WORKFLOW_INSTANCE_EVENT);
 
             workflowInstanceEvent.reset();
             workflowInstanceEvent
@@ -1234,7 +1234,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessor
             targetEventMetadata.reset();
             targetEventMetadata
                     .protocolVersion(Protocol.PROTOCOL_VERSION)
-                    .eventType(WORKFLOW_INSTANCE_EVENT);
+                    .valueType(WORKFLOW_INSTANCE_EVENT);
 
             logEntryBuilder
                 .key(eventKey)
@@ -1248,7 +1248,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessor
             targetEventMetadata.reset();
             targetEventMetadata
                 .protocolVersion(Protocol.PROTOCOL_VERSION)
-                .eventType(TASK_EVENT);
+                .valueType(TASK_EVENT);
 
             taskEvent.reset();
             taskEvent
@@ -1273,7 +1273,7 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessor
             targetEventMetadata.reset();
             targetEventMetadata
                     .protocolVersion(Protocol.PROTOCOL_VERSION)
-                    .eventType(WORKFLOW_INSTANCE_EVENT);
+                    .valueType(WORKFLOW_INSTANCE_EVENT);
 
             activityInstanceEvent.reset();
             activityInstanceEvent

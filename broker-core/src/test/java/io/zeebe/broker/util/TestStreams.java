@@ -44,7 +44,7 @@ import io.zeebe.logstreams.spi.SnapshotSupport;
 import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.protocol.Protocol;
 import io.zeebe.protocol.clientapi.EventType;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
+import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.servicecontainer.ServiceContainer;
 import io.zeebe.test.util.AutoCloseableRule;
 import io.zeebe.util.buffer.BufferUtil;
@@ -434,7 +434,7 @@ public class TestStreams
     public static class FluentLogWriter
     {
 
-        protected BrokerEventMetadata metadata = new BrokerEventMetadata();
+        protected RecordMetadata metadata = new RecordMetadata();
         protected UnpackedObject value;
         protected LogStream logStream;
         protected long key = -1;
@@ -446,7 +446,7 @@ public class TestStreams
             metadata.protocolVersion(Protocol.PROTOCOL_VERSION);
         }
 
-        public FluentLogWriter metadata(Consumer<BrokerEventMetadata> metadata)
+        public FluentLogWriter metadata(Consumer<RecordMetadata> metadata)
         {
             metadata.accept(this.metadata);
             return this;
@@ -466,7 +466,7 @@ public class TestStreams
                 throw new RuntimeException("No event type registered for value " + event.getClass());
             }
 
-            this.metadata.eventType(eventType);
+            this.metadata.valueType(eventType);
             this.value = event;
             return this;
         }

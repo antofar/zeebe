@@ -30,7 +30,7 @@ import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.logstreams.log.LoggedEvent;
 import io.zeebe.protocol.Protocol;
 import io.zeebe.protocol.clientapi.*;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
+import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.raft.state.RaftState;
 import io.zeebe.servicecontainer.testing.ServiceContainerRule;
 import io.zeebe.test.util.TestUtil;
@@ -175,7 +175,7 @@ public class ClientApiMessageHandlerTest
         assertThat(loggedEvent.getValueLength()).isEqualTo(TASK_EVENT.length);
         assertThat(valueBuffer).isEqualTo(TASK_EVENT);
 
-        final BrokerEventMetadata eventMetadata = new BrokerEventMetadata();
+        final RecordMetadata eventMetadata = new RecordMetadata();
         loggedEvent.readMetadata(eventMetadata);
 
         assertThat(eventMetadata.getRequestId()).isEqualTo(REQUEST_ID);
@@ -199,7 +199,7 @@ public class ClientApiMessageHandlerTest
         waitForAvailableEvent(logStreamReader);
 
         final LoggedEvent loggedEvent = logStreamReader.next();
-        final BrokerEventMetadata eventMetadata = new BrokerEventMetadata();
+        final RecordMetadata eventMetadata = new RecordMetadata();
         loggedEvent.readMetadata(eventMetadata);
 
         assertThat(eventMetadata.getProtocolVersion()).isEqualTo(clientProtocolVersion);
@@ -221,7 +221,7 @@ public class ClientApiMessageHandlerTest
         waitForAvailableEvent(logStreamReader);
 
         final LoggedEvent loggedEvent = logStreamReader.next();
-        final BrokerEventMetadata eventMetadata = new BrokerEventMetadata();
+        final RecordMetadata eventMetadata = new RecordMetadata();
         loggedEvent.readMetadata(eventMetadata);
 
         assertThat(eventMetadata.getEventType()).isEqualTo(EventType.TASK_EVENT);
@@ -389,7 +389,7 @@ public class ClientApiMessageHandlerTest
 
         commandRequestEncoder
             .partitionId(partitionId)
-            .eventType(eventTypeToWrite)
+            .valueType(eventTypeToWrite)
             .putCommand(TASK_EVENT, 0, TASK_EVENT.length);
 
         return headerEncoder.encodedLength() +

@@ -50,10 +50,10 @@ public class SubscribedEventWriterTest
     public void shouldWriteEventToBuffer()
     {
         // given
-        final SubscribedEventWriter eventWriter = new SubscribedEventWriter(null);
+        final SubscribedRecordWriter eventWriter = new SubscribedRecordWriter(null);
         eventWriter
             .event(BUFFER, 1, BUFFER.capacity() - 1)
-            .eventType(EventType.RAFT_EVENT)
+            .valueType(EventType.RAFT_EVENT)
             .key(123L)
             .position(546L)
             .partitionId(876)

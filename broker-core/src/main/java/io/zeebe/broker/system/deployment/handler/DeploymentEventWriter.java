@@ -22,7 +22,7 @@ import java.util.function.Consumer;
 import io.zeebe.broker.logstreams.processor.*;
 import io.zeebe.broker.workflow.data.DeploymentEvent;
 import io.zeebe.broker.workflow.data.DeploymentState;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
+import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.util.sched.ActorControl;
 
 public class DeploymentEventWriter implements StreamProcessorLifecycleAware
@@ -75,9 +75,9 @@ public class DeploymentEventWriter implements StreamProcessorLifecycleAware
         });
     }
 
-    private Consumer<BrokerEventMetadata> copyRequestMetadata(TypedEvent<DeploymentEvent> event)
+    private Consumer<RecordMetadata> copyRequestMetadata(TypedEvent<DeploymentEvent> event)
     {
-        final BrokerEventMetadata metadata = event.getMetadata();
+        final RecordMetadata metadata = event.getMetadata();
         return m -> m
                 .requestId(metadata.getRequestId())
                 .requestStreamId(metadata.getRequestStreamId());

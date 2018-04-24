@@ -17,32 +17,40 @@
  */
 package io.zeebe.broker.logstreams.processor;
 
-import io.zeebe.msgpack.UnpackedObject;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
-
 import java.util.function.Consumer;
+
+import io.zeebe.msgpack.UnpackedObject;
+import io.zeebe.protocol.clientapi.Intent;
+import io.zeebe.protocol.impl.RecordMetadata;
 
 public interface TypedStreamWriter
 {
-    /**
-     * @return position of new event, negative value on failure
-     */
-    long writeFollowupEvent(long key, UnpackedObject event);
+    // TODO: javadoc
 
-    /**
-     * @return position of new event, negative value on failure
-     */
-    long writeFollowupEvent(long key, UnpackedObject event, Consumer<BrokerEventMetadata> metadata);
+    long writeRejection(TypedEvent<? extends UnpackedObject> command);
 
-    /**
-     * @return position of new event, negative value on failure
-     */
-    long writeNewEvent(UnpackedObject event);
+    long writeCommand(Intent intent, UnpackedObject value);
+    long writeCommand(long key, Intent intent, UnpackedObject value);
+    long writeCommand(long key, Intent intent, UnpackedObject value, Consumer<RecordMetadata> metadata);
 
-    /**
-     * @return position of new event, negative value on failure
-     */
-    long writeNewEvent(UnpackedObject event, Consumer<BrokerEventMetadata> metadata);
+    long writeEvent(Intent intent, UnpackedObject value);
+    long writeEvent(long key, Intent intent, UnpackedObject value);
+    long writeEvent(long key, Intent intent, UnpackedObject value, Consumer<RecordMetadata> metadata);
+//
+//    /**
+//     * @return position of new event, negative value on failure
+//     */
+//    long writeFollowupRecord(long key, Intent intent, UnpackedObject value);
+//
+//    /**
+//     * @return position of new event, negative value on failure
+//     */
+//    long writeFollowupRecord(long key, Intent intent, UnpackedObject value, Consumer<RecordMetadata> metadata);
+//
+//    /**
+//     * @return position of new event, negative value on failure
+//     */
+//    long writeNewRecord(Intent intent, UnpackedObject value);
 
     TypedBatchWriter newBatch();
 }

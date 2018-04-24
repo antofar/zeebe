@@ -29,7 +29,7 @@ import io.zeebe.broker.workflow.data.WorkflowInstanceEvent;
 import io.zeebe.broker.workflow.data.WorkflowInstanceState;
 import io.zeebe.map.Long2LongZbMap;
 import io.zeebe.protocol.clientapi.EventType;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
+import io.zeebe.protocol.impl.RecordMetadata;
 
 /**
  * Is responsible for the incident lifecycle.
@@ -239,7 +239,7 @@ public class IncidentStreamProcessor
             return position;
         }
 
-        private void setIncidentKey(BrokerEventMetadata metadata)
+        private void setIncidentKey(RecordMetadata metadata)
         {
             metadata.incidentKey(incidentKey);
         }

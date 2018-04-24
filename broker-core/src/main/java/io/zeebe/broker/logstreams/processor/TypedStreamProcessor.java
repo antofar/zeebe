@@ -37,7 +37,7 @@ import io.zeebe.logstreams.processor.StreamProcessorContext;
 import io.zeebe.logstreams.spi.SnapshotSupport;
 import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.protocol.clientapi.EventType;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
+import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.transport.ServerOutput;
 import io.zeebe.util.ReflectUtil;
 import io.zeebe.util.sched.ActorControl;
@@ -52,7 +52,7 @@ public class TypedStreamProcessor implements StreamProcessor
     protected final EnumMap<EventType, EnumMap> eventProcessors;
     protected final List<StreamProcessorLifecycleAware> lifecycleListeners = new ArrayList<>();
 
-    protected final BrokerEventMetadata metadata = new BrokerEventMetadata();
+    protected final RecordMetadata metadata = new RecordMetadata();
     protected final EnumMap<EventType, Class<? extends UnpackedObject>> eventRegistry;
     protected final EnumMap<EventType, UnpackedObject> eventCache;
 

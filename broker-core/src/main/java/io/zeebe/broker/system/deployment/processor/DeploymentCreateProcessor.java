@@ -56,7 +56,7 @@ import io.zeebe.model.bpmn.ValidationResult;
 import io.zeebe.model.bpmn.instance.Workflow;
 import io.zeebe.model.bpmn.instance.WorkflowDefinition;
 import io.zeebe.msgpack.value.ValueArray;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
+import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.util.buffer.BufferUtil;
 import io.zeebe.util.collection.IntArrayListIterator;
 
@@ -314,9 +314,9 @@ public class DeploymentCreateProcessor implements TypedEventProcessor<Deployment
         }
     }
 
-    private Consumer<BrokerEventMetadata> addRequestMetadata(TypedEvent<DeploymentEvent> event)
+    private Consumer<RecordMetadata> addRequestMetadata(TypedEvent<DeploymentEvent> event)
     {
-        final BrokerEventMetadata metadata = event.getMetadata();
+        final RecordMetadata metadata = event.getMetadata();
         return m -> m
                 .requestId(metadata.getRequestId())
                 .requestStreamId(metadata.getRequestStreamId());

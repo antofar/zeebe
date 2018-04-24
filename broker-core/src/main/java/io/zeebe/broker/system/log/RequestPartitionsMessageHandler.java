@@ -21,7 +21,7 @@ import io.zeebe.broker.transport.controlmessage.AbstractControlMessageHandler;
 import io.zeebe.protocol.Protocol;
 import io.zeebe.protocol.clientapi.ControlMessageType;
 import io.zeebe.protocol.clientapi.ErrorCode;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
+import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.transport.ServerOutput;
 import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.future.ActorFuture;
@@ -44,7 +44,7 @@ public class RequestPartitionsMessageHandler extends AbstractControlMessageHandl
     }
 
     @Override
-    public void handle(ActorControl actor, int partitionId, DirectBuffer buffer, BrokerEventMetadata metadata)
+    public void handle(ActorControl actor, int partitionId, DirectBuffer buffer, RecordMetadata metadata)
     {
         final int requestStreamId = metadata.getRequestStreamId();
         final long requestId = metadata.getRequestId();

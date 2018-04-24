@@ -27,7 +27,7 @@ import io.zeebe.logstreams.log.LogStreamWriter;
 import io.zeebe.logstreams.log.LogStreamWriterImpl;
 import io.zeebe.protocol.Protocol;
 import io.zeebe.protocol.clientapi.EventType;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
+import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.transport.RemoteAddress;
 import io.zeebe.util.DeferredCommandContext;
 import org.agrona.DirectBuffer;
@@ -39,7 +39,7 @@ public class WorkflowRequestMessageHandler
     private final DeleteWorkflowMessage deleteMessage = new DeleteWorkflowMessage();
 
     private final WorkflowEvent workflowEvent = new WorkflowEvent();
-    private final BrokerEventMetadata eventMetadata = new BrokerEventMetadata();
+    private final RecordMetadata eventMetadata = new RecordMetadata();
 
     private final DeferredCommandContext deferredContext = new DeferredCommandContext();
 
@@ -58,7 +58,7 @@ public class WorkflowRequestMessageHandler
             .requestId(requestId)
             .requestStreamId(remoteAddress.getStreamId())
             .protocolVersion(Protocol.PROTOCOL_VERSION)
-            .eventType(EventType.WORKFLOW_EVENT);
+            .valueType(EventType.WORKFLOW_EVENT);
 
         createRequest.wrap(buffer, offset, length);
 
@@ -88,7 +88,7 @@ public class WorkflowRequestMessageHandler
     {
         eventMetadata.reset()
             .protocolVersion(Protocol.PROTOCOL_VERSION)
-            .eventType(EventType.WORKFLOW_EVENT);
+            .valueType(EventType.WORKFLOW_EVENT);
 
         deleteMessage.wrap(buffer, offset, length);
 

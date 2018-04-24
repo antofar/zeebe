@@ -34,10 +34,10 @@ import io.zeebe.broker.task.TaskSubscriptionManager;
 import io.zeebe.broker.task.data.TaskEvent;
 import io.zeebe.broker.task.data.TaskState;
 import io.zeebe.broker.task.map.TaskInstanceMap;
-import io.zeebe.broker.transport.clientapi.SubscribedEventWriter;
+import io.zeebe.broker.transport.clientapi.SubscribedRecordWriter;
 import io.zeebe.protocol.clientapi.EventType;
 import io.zeebe.protocol.clientapi.SubscriptionType;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
+import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.util.buffer.BufferUtil;
 
 public class TaskInstanceStreamProcessor
@@ -47,7 +47,7 @@ public class TaskInstanceStreamProcessor
     protected static final short STATE_FAILED = 3;
     protected static final short STATE_LOCK_EXPIRED = 4;
 
-    protected SubscribedEventWriter subscribedEventWriter;
+    protected SubscribedRecordWriter subscribedEventWriter;
     protected final TaskSubscriptionManager taskSubscriptionManager;
     protected final CreditsRequest creditsRequest = new CreditsRequest();
 
@@ -64,7 +64,7 @@ public class TaskInstanceStreamProcessor
     public TypedStreamProcessor createStreamProcessor(TypedStreamEnvironment environment)
     {
         this.logStreamPartitionId = environment.getStream().getPartitionId();
-        this.subscribedEventWriter = new SubscribedEventWriter(environment.getOutput());
+        this.subscribedEventWriter = new SubscribedRecordWriter(environment.getOutput());
 
         return environment.newStreamProcessor()
             .onEvent(EventType.TASK_EVENT, TaskState.CREATE, new CreateTaskProcessor())
@@ -103,7 +103,7 @@ public class TaskInstanceStreamProcessor
         @Override
         public long writeEvent(TypedEvent<TaskEvent> event, TypedStreamWriter writer)
         {
-            return writer.writeFollowupEvent(event.getKey(), event.getValue());
+            return writer.writeFollowupEvent(event.getKey(), SbeEnum.CREATED, event.getValue());
         }
 
         @Override
@@ -146,7 +146,7 @@ public class TaskInstanceStreamProcessor
 
             if (isLocked)
             {
-                final BrokerEventMetadata metadata = event.getMetadata();
+                final RecordMetadata metadata = event.getMetadata();
 
                 success = subscribedEventWriter
                         .partitionId(logStreamPartitionId)
@@ -154,7 +154,7 @@ public class TaskInstanceStreamProcessor
                         .key(event.getKey())
                         .subscriberKey(metadata.getSubscriberKey())
                         .subscriptionType(SubscriptionType.TASK_SUBSCRIPTION)
-                        .eventType(TASK_EVENT)
+                        .valueType(TASK_EVENT)
                         .eventWriter(event.getValue())
                         .tryWriteMessage(metadata.getRequestStreamId());
             }

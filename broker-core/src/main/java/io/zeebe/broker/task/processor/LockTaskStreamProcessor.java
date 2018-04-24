@@ -38,7 +38,7 @@ import io.zeebe.broker.task.data.TaskState;
 import io.zeebe.broker.task.processor.TaskSubscriptions.SubscriptionIterator;
 import io.zeebe.logstreams.processor.StreamProcessorContext;
 import io.zeebe.protocol.clientapi.EventType;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
+import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.util.buffer.BufferUtil;
 import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.clock.ActorClock;
@@ -256,7 +256,7 @@ public class LockTaskStreamProcessor implements TypedEventProcessor<TaskEvent>, 
         return position;
     }
 
-    private void assignToSelectedSubscriber(BrokerEventMetadata metadata)
+    private void assignToSelectedSubscriber(RecordMetadata metadata)
     {
         metadata.subscriberKey(selectedSubscriber.getSubscriberKey());
         metadata.requestStreamId(selectedSubscriber.getStreamId());

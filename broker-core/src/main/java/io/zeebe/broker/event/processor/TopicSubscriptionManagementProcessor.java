@@ -34,7 +34,7 @@ import io.zeebe.map.Bytes2LongZbMap;
 import io.zeebe.protocol.Protocol;
 import io.zeebe.protocol.clientapi.ErrorCode;
 import io.zeebe.protocol.clientapi.EventType;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
+import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.servicecontainer.ServiceContainer;
 import io.zeebe.servicecontainer.ServiceName;
 import io.zeebe.util.sched.ActorControl;
@@ -59,7 +59,7 @@ public class TopicSubscriptionManagementProcessor implements StreamProcessor
 
     protected final ErrorResponseWriter errorWriter;
     protected final CommandResponseWriter responseWriter;
-    protected final Supplier<SubscribedEventWriter> eventWriterFactory;
+    protected final Supplier<SubscribedRecordWriter> eventWriterFactory;
     protected final StreamProcessorServiceFactory streamProcessorServiceFactory;
     protected final ServiceContainer serviceContext;
     protected final Bytes2LongZbMap ackMap;
@@ -70,7 +70,7 @@ public class TopicSubscriptionManagementProcessor implements StreamProcessor
     protected final SubscribeProcessor subscribeProcessor = new SubscribeProcessor(MAXIMUM_SUBSCRIPTION_NAME_LENGTH, this);
     protected final SubscribedProcessor subscribedProcessor = new SubscribedProcessor();
 
-    protected final BrokerEventMetadata metadata = new BrokerEventMetadata();
+    protected final RecordMetadata metadata = new RecordMetadata();
     protected final TopicSubscriptionEvent subscriptionEvent = new TopicSubscriptionEvent();
     protected final TopicSubscriberEvent subscriberEvent = new TopicSubscriberEvent();
     protected LoggedEvent currentEvent;
@@ -80,7 +80,7 @@ public class TopicSubscriptionManagementProcessor implements StreamProcessor
             ServiceName<Partition> partitionServiceName,
             CommandResponseWriter responseWriter,
             ErrorResponseWriter errorWriter,
-            Supplier<SubscribedEventWriter> eventWriterFactory,
+            Supplier<SubscribedRecordWriter> eventWriterFactory,
             StreamProcessorServiceFactory streamProcessorServiceFactory,
             ServiceContainer serviceContainer)
     {
@@ -95,7 +95,7 @@ public class TopicSubscriptionManagementProcessor implements StreamProcessor
         this.streamProcessorServiceFactory = streamProcessorServiceFactory;
     }
 
-    public Supplier<SubscribedEventWriter> getEventWriterFactory()
+    public Supplier<SubscribedRecordWriter> getEventWriterFactory()
     {
         return eventWriterFactory;
     }
@@ -260,7 +260,7 @@ public class TopicSubscriptionManagementProcessor implements StreamProcessor
     }
 
 
-    public boolean writeRequestResponseError(BrokerEventMetadata metadata, String error)
+    public boolean writeRequestResponseError(RecordMetadata metadata, String error)
     {
         return errorWriter
             .errorCode(ErrorCode.REQUEST_PROCESSING_FAILURE)
@@ -386,7 +386,7 @@ public class TopicSubscriptionManagementProcessor implements StreamProcessor
                 .setName(openedSubscriptionName, 0, openedSubscriptionName.capacity())
                 .setAckPosition(subscriberEvent.getStartPosition() - 1);
 
-            metadata.eventType(EventType.SUBSCRIPTION_EVENT)
+            metadata.valueType(EventType.SUBSCRIPTION_EVENT)
                 .requestStreamId(-1)
                 .requestId(-1);
 

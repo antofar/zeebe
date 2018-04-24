@@ -985,7 +985,7 @@ public class IncidentTest
     private void updatePayload(final long workflowInstanceKey, final long activityInstanceKey, byte[] payload)
     {
         final ExecuteCommandResponse response = apiRule.createCmdRequest()
-            .eventType(EventType.WORKFLOW_INSTANCE_EVENT)
+            .valueType(EventType.WORKFLOW_INSTANCE_EVENT)
             .key(activityInstanceKey)
             .command()
                 .put("state", WorkflowInstanceState.UPDATE_PAYLOAD)

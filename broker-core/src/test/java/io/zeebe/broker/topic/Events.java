@@ -26,7 +26,7 @@ import io.zeebe.broker.workflow.data.DeploymentEvent;
 import io.zeebe.logstreams.log.LoggedEvent;
 import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.protocol.clientapi.EventType;
-import io.zeebe.protocol.impl.BrokerEventMetadata;
+import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.util.ReflectUtil;
 import io.zeebe.util.buffer.BufferUtil;
 
@@ -93,7 +93,7 @@ public class Events
             return false;
         }
 
-        final BrokerEventMetadata metadata = new BrokerEventMetadata();
+        final RecordMetadata metadata = new RecordMetadata();
         event.readMetadata(metadata);
 
         return metadata.getEventType() == type;
