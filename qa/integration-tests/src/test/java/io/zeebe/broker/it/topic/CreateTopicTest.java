@@ -15,7 +15,6 @@
  */
 package io.zeebe.broker.it.topic;
 
-import static io.zeebe.test.util.TestUtil.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
@@ -23,7 +22,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import io.zeebe.broker.it.ClientRule;
 import io.zeebe.broker.it.EmbeddedBrokerRule;
@@ -99,7 +97,7 @@ public class CreateTopicTest
     }
 
     @Test
-    public void shouldRequestTopics() throws InterruptedException
+    public void shouldRequestTopics()
     {
         // given
         clientRule.topics().create("foo", 2).execute();
