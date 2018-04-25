@@ -30,6 +30,7 @@ import io.zeebe.logstreams.processor.StreamProcessorContext;
 import io.zeebe.logstreams.spi.SnapshotSupport;
 import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.protocol.clientapi.Intent;
+import io.zeebe.protocol.clientapi.RecordType;
 import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.transport.ServerOutput;
@@ -43,7 +44,7 @@ public class TypedStreamProcessor implements StreamProcessor
 
     protected final SnapshotSupport snapshotSupport;
     protected final ServerOutput output;
-    protected final EnumMap<ValueType, EnumMap<Intent, TypedRecordProcessor>> eventProcessors;
+    protected final FlatEnumMap<TypedRecordProcessor> eventProcessors;
     protected final List<StreamProcessorLifecycleAware> lifecycleListeners = new ArrayList<>();
 
     protected final RecordMetadata metadata = new RecordMetadata();
@@ -58,14 +59,18 @@ public class TypedStreamProcessor implements StreamProcessor
     public TypedStreamProcessor(
             SnapshotSupport snapshotSupport,
             ServerOutput output,
-            EnumMap<ValueType, EnumMap<Intent, TypedRecordProcessor>> eventProcessors,
+            FlatEnumMap<TypedRecordProcessor> eventProcessors,
             List<StreamProcessorLifecycleAware> lifecycleListeners,
             EnumMap<ValueType, Class<? extends UnpackedObject>> eventRegistry)
     {
         this.snapshotSupport = snapshotSupport;
         this.output = output;
         this.eventProcessors = eventProcessors;
-        eventProcessors.values().forEach(p -> this.lifecycleListeners.addAll(p.values()));
+        eventProcessors.values()
+            .stream()
+            .flatMap(m -> m.values().stream())
+            .forEach(p -> this.lifecycleListeners.addAll(p.values()));
+
         this.lifecycleListeners.addAll(lifecycleListeners);
 
         this.eventCache = new EnumMap<>(ValueType.class);
@@ -106,14 +111,7 @@ public class TypedStreamProcessor implements StreamProcessor
         metadata.reset();
         event.readMetadata(metadata);
 
-        final EnumMap processorsForType = eventProcessors.get(metadata.getValueType());
-        if (processorsForType == null || processorsForType.isEmpty())
-        {
-            return null;
-        }
-
-        final Intent intent = metadata.getIntent();
-        final TypedRecordProcessor currentProcessor = (TypedRecordProcessor) processorsForType.get(intent);
+        TypedRecordProcessor currentProcessor = eventProcessors.get(metadata.getValueType(), metadata.getRecordType(), metadata.getIntent());
 
         if (currentProcessor != null)
         {
@@ -133,13 +131,7 @@ public class TypedStreamProcessor implements StreamProcessor
 
     public MetadataFilter buildTypeFilter()
     {
-        return m ->
-        {
-            final ValueType valueType = m.getValueType();
-
-            return eventProcessors.containsKey(valueType)
-                    && eventProcessors.get(valueType).containsKey(m.getIntent());
-        };
+        return m -> eventProcessors.containsKey(m.getValueType(), m.getRecordType(), m.getIntent());
     }
 
     public ActorFuture<Void> runAsync(Runnable runnable)

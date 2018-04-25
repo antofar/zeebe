@@ -18,7 +18,6 @@
 package io.zeebe.broker.logstreams.processor;
 
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.List;
 
 import io.zeebe.logstreams.snapshot.ComposedSnapshot;
@@ -29,6 +28,7 @@ import io.zeebe.logstreams.spi.SnapshotSupport;
 import io.zeebe.map.ZbMap;
 import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.protocol.clientapi.Intent;
+import io.zeebe.protocol.clientapi.RecordType;
 import io.zeebe.protocol.clientapi.ValueType;
 
 @SuppressWarnings("rawtypes")
@@ -38,7 +38,7 @@ public class TypedEventStreamProcessorBuilder
 
     protected List<ComposableSnapshotSupport> stateResources = new ArrayList<>();
 
-    protected EnumMap<ValueType, EnumMap<Intent, TypedRecordProcessor>> eventProcessors = new EnumMap<>(ValueType.class);
+    protected FlatEnumMap<TypedRecordProcessor> eventProcessors = new FlatEnumMap<>(ValueType.class, RecordType.class, Intent.class);
     protected List<StreamProcessorLifecycleAware> lifecycleListeners = new ArrayList<>();
 
     public TypedEventStreamProcessorBuilder(TypedStreamEnvironment environment)
@@ -46,18 +46,26 @@ public class TypedEventStreamProcessorBuilder
         this.environment = environment;
     }
 
-    public TypedEventStreamProcessorBuilder onEvent(ValueType eventType, Intent intent, TypedRecordProcessor<?> processor)
+    public TypedEventStreamProcessorBuilder onEvent(ValueType valueType, Intent intent, TypedRecordProcessor<?> processor)
     {
-        EnumMap<Intent, TypedRecordProcessor> processorsForType = eventProcessors.get(eventType);
-        if (processorsForType == null)
-        {
-            processorsForType = new EnumMap<>(Intent.class);
-            eventProcessors.put(eventType, processorsForType);
-        }
+        return onRecord(RecordType.EVENT, valueType, intent, processor);
+    }
 
-        processorsForType.put(intent, processor);
+    private TypedEventStreamProcessorBuilder onRecord(RecordType recordType, ValueType valueType, Intent intent, TypedRecordProcessor<?> processor)
+    {
+        eventProcessors.put(valueType, recordType, intent, processor);
 
         return this;
+    }
+
+    public TypedEventStreamProcessorBuilder onCommand(ValueType valueType, Intent intent, TypedRecordProcessor<?> processor)
+    {
+        return onRecord(RecordType.COMMAND, valueType, intent, processor);
+    }
+
+    public TypedEventStreamProcessorBuilder onRejection(ValueType valueType, Intent intent, TypedRecordProcessor<?> processor)
+    {
+        return onRecord(RecordType.COMMAND_REJECTION, valueType, intent, processor);
     }
 
     public TypedEventStreamProcessorBuilder withListener(StreamProcessorLifecycleAware listener)
