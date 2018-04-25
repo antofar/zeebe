@@ -2,6 +2,7 @@ package io.zeebe.broker.clustering.orchestration;
 
 import io.zeebe.broker.clustering.orchestration.id.IdGenerator;
 import io.zeebe.broker.clustering.orchestration.state.ClusterTopicState;
+import io.zeebe.broker.clustering.orchestration.topic.RequestPartitionsMessageHandler;
 import io.zeebe.servicecontainer.ServiceName;
 
 public class ClusterOrchestrationLayerSerivceNames
