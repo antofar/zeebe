@@ -17,10 +17,12 @@
  */
 package io.zeebe.broker.incident.data;
 
-import io.zeebe.msgpack.UnpackedObject;
 import org.agrona.DirectBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
 
+import io.zeebe.broker.logstreams.processor.TypedRecord;
+import io.zeebe.broker.workflow.data.WorkflowInstanceEvent;
+import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.msgpack.property.BinaryProperty;
 import io.zeebe.msgpack.property.EnumProperty;
 import io.zeebe.msgpack.property.LongProperty;
@@ -154,6 +156,19 @@ public class IncidentEvent extends UnpackedObject
     public IncidentEvent setPayload(DirectBuffer payload)
     {
         this.payloadProp.setValue(payload);
+        return this;
+    }
+
+    public IncidentEvent initFromWorkflowInstanceFailure(TypedRecord<WorkflowInstanceEvent> workflowInstanceEvent)
+    {
+        final WorkflowInstanceEvent value = workflowInstanceEvent.getValue();
+
+        setFailureEventPosition(workflowInstanceEvent.getPosition());
+        setActivityInstanceKey(workflowInstanceEvent.getKey());
+        setBpmnProcessId(value.getBpmnProcessId());
+        setWorkflowInstanceKey(value.getWorkflowInstanceKey());
+        setActivityId(value.getActivityId());
+
         return this;
     }
 }
