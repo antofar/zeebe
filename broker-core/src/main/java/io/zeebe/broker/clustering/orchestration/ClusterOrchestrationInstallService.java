@@ -9,7 +9,6 @@ import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.base.ClusterBaseLayerServiceNames;
 import io.zeebe.broker.clustering.base.partitions.Partition;
 import io.zeebe.broker.clustering.orchestration.state.ClusterTopicState;
-import io.zeebe.broker.system.log.RequestPartitionsMessageHandler;
 import io.zeebe.broker.transport.controlmessage.ControlMessageHandlerManager;
 import io.zeebe.servicecontainer.*;
 import io.zeebe.transport.ServerOutput;

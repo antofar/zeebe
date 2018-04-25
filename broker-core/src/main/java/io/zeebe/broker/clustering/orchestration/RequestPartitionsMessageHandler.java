@@ -15,13 +15,14 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package io.zeebe.broker.system.log;
+package io.zeebe.broker.clustering.orchestration;
 
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.zeebe.broker.clustering.orchestration.state.ClusterTopicState;
 import io.zeebe.broker.clustering.orchestration.state.TopicInfo;
+import io.zeebe.broker.system.log.PartitionsResponse;
 import io.zeebe.broker.transport.controlmessage.AbstractControlMessageHandler;
 import io.zeebe.protocol.Protocol;
 import io.zeebe.protocol.clientapi.ControlMessageType;
