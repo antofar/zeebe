@@ -8,6 +8,7 @@ import static io.zeebe.broker.transport.TransportServiceNames.serverTransport;
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.base.ClusterBaseLayerServiceNames;
 import io.zeebe.broker.clustering.base.partitions.Partition;
+import io.zeebe.broker.clustering.orchestration.id.IdGenerator;
 import io.zeebe.broker.clustering.orchestration.state.ClusterTopicState;
 import io.zeebe.broker.transport.controlmessage.ControlMessageHandlerManager;
 import io.zeebe.servicecontainer.*;
@@ -53,11 +54,19 @@ public class ClusterOrchestrationInstallService implements Service<Void>
                     .dependency(STREAM_PROCESSOR_SERVICE_FACTORY, clusterTopicState.getStreamProcessorServiceFactoryInjector())
                     .install();
 
+        final IdGenerator idGenerator = new IdGenerator();
+        compositeInstall.createService(ID_GENERATOR_SERVICE_NAME, idGenerator)
+                        .dependency(serverTransport(CLIENT_API_SERVER_NAME), idGenerator.getClientApiTransportInjector())
+                        .dependency(STREAM_PROCESSOR_SERVICE_FACTORY, idGenerator.getStreamProcessorServiceFactoryInjector())
+                        .dependency(partitionServiceName, idGenerator.getPartitionInjector())
+                        .install();
+
         final TopicCreationReviserService topicCreationReviserService = new TopicCreationReviserService();
         compositeInstall.createService(TOPIC_CREATION_REVISER_SERVICE_NAME, topicCreationReviserService)
                         .dependency(CLUSTER_TOPIC_STATE_SERVICE_NAME, topicCreationReviserService.getStateInjector())
                         .dependency(ClusterBaseLayerServiceNames.TOPOLOGY_MANAGER_SERVICE, topicCreationReviserService.getTopologyManagerInjector())
                         .dependency(partitionServiceName, topicCreationReviserService.getLeaderSystemPartitionInjector())
+                        .dependency(ID_GENERATOR_SERVICE_NAME, topicCreationReviserService.getIdGeneratorInjector())
                         .install();
 
         compositeInstall.createService(REQUEST_PARTITIONS_MESSAGE_HANDLER_SERVICE_NAME, requestPartitionsMessageHandler)

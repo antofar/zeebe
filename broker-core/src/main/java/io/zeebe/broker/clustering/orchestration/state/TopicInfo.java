@@ -12,6 +12,7 @@ public class TopicInfo
 {
 
     private final DirectBuffer topicName;
+    private final String topicNameString;
     private final long createEventPosition;
     private final int partitionCount;
     private final int replicationFactor;
@@ -20,6 +21,7 @@ public class TopicInfo
     public TopicInfo(long position, final TopicEvent event)
     {
         this.topicName = BufferUtil.cloneBuffer(event.getName());
+        this.topicNameString = BufferUtil.bufferAsString(event.getName());
         this.createEventPosition = position;
         this.partitionCount = event.getPartitions();
         this.replicationFactor = event.getReplicationFactor();
@@ -81,7 +83,7 @@ public class TopicInfo
     @Override
     public String toString()
     {
-        return "TopicInfo{" + "topicName=" + topicName + ", partitionCount=" + partitionCount + ", replicationFactor=" + replicationFactor + ", partitionIds=" + partitionIds + '}';
+        return "TopicInfo{" + "topicName=" + topicNameString + ", partitionCount=" + partitionCount + ", replicationFactor=" + replicationFactor + ", partitionIds=" + partitionIds + '}';
     }
 
     public void update(final TopicInfo topicInfo)

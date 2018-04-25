@@ -5,6 +5,7 @@ import io.zeebe.broker.clustering.base.partitions.Partition;
 import io.zeebe.broker.clustering.base.topology.PartitionInfo;
 import io.zeebe.broker.clustering.base.topology.ReadableTopology;
 import io.zeebe.broker.clustering.base.topology.TopologyManager;
+import io.zeebe.broker.clustering.orchestration.id.IdGenerator;
 import io.zeebe.broker.clustering.orchestration.state.ClusterTopicState;
 import io.zeebe.broker.clustering.orchestration.state.TopicInfo;
 import io.zeebe.broker.logstreams.processor.TypedEvent;
@@ -35,19 +36,22 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
     private final Injector<ClusterTopicState> stateInjector = new Injector<>();
     private final Injector<TopologyManager> topologyManagerInjector = new Injector<>();
     private final Injector<Partition> leaderSystemPartitionInjector = new Injector<>();
+    private final Injector<IdGenerator> idGeneratorInjector = new Injector<>();
 
     private ClusterTopicState clusterTopicState;
     private TopologyManager topologyManager;
     private Partition leaderSystemPartition;
     private TypedStreamReader streamReader;
     private TypedStreamWriter streamWriter;
+    private IdGenerator idGenerator;
 
     @Override
-    public void start(ServiceStartContext startContext)
+    public void start(final ServiceStartContext startContext)
     {
         clusterTopicState = stateInjector.getValue();
         topologyManager = topologyManagerInjector.getValue();
         leaderSystemPartition = leaderSystemPartitionInjector.getValue();
+        idGenerator = idGeneratorInjector.getValue();
 
         final TypedStreamEnvironment typedStreamEnvironment = new TypedStreamEnvironment(leaderSystemPartition.getLogStream(), null);
         streamReader = typedStreamEnvironment.buildStreamReader();
@@ -57,7 +61,7 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
     }
 
     @Override
-    public void stop(ServiceStopContext stopContext)
+    public void stop(final ServiceStopContext stopContext)
     {
         stopContext.async(actor.close());
     }
@@ -86,7 +90,7 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
         });
     }
 
-    private void checkDesiredState(Map<DirectBuffer, TopicInfo> desiredState)
+    private void checkDesiredState(final Map<DirectBuffer, TopicInfo> desiredState)
     {
         final ActorFuture<Map<DirectBuffer, List<PartitionInfo>>> queryFuture = topologyManager.query(this::computeCurrentState);
 
@@ -103,7 +107,7 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
         });
     }
 
-    private Map<DirectBuffer, List<PartitionInfo>> computeCurrentState(ReadableTopology readableTopology)
+    private Map<DirectBuffer, List<PartitionInfo>> computeCurrentState(final ReadableTopology readableTopology)
     {
         final Map<DirectBuffer, List<PartitionInfo>> currentState = new HashMap<>();
 
@@ -124,17 +128,24 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
         return currentState;
     }
 
-    private void computeStateDifferences(Map<DirectBuffer, TopicInfo> desiredState,
-                                         Map<DirectBuffer, List<PartitionInfo>> currentState)
+    private void computeStateDifferences(final Map<DirectBuffer, TopicInfo> desiredState,
+                                         final Map<DirectBuffer, List<PartitionInfo>> currentState)
     {
-        for (Map.Entry<DirectBuffer, TopicInfo> desiredEntry : desiredState.entrySet())
+        for (final Map.Entry<DirectBuffer, TopicInfo> desiredEntry : desiredState.entrySet())
         {
             final TopicInfo desiredTopic = desiredEntry.getValue();
 
             final List<PartitionInfo> partitionInfos = currentState.get(desiredTopic.getTopicName());
-            if (partitionInfos == null || partitionInfos.size() < desiredTopic.getPartitionCount())
+            final int currentPartitionCount = partitionInfos != null ? partitionInfos.size() : 0;
+            final int desiredPartitionCount = desiredTopic.getPartitionCount();
+            final int missingPartitions = desiredPartitionCount - currentPartitionCount;
+            if (missingPartitions > 0)
             {
-                LOG.debug("Send create partition");
+                LOG.debug("Creating {} partitions for topic {}", desiredTopic);
+                for (int i = 0; i < missingPartitions; i++)
+                {
+                    createPartition(desiredTopic);
+                }
                 // TODO no partitions or not enough for this topic so we create partitions requests
                 // we need Id generation for that
             }
@@ -152,6 +163,27 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
                 streamWriter.writeFollowupEvent(readEvent.getKey(), topicEvent);
             }
         }
+    }
+
+    private void createPartition(final TopicInfo topicInfo)
+    {
+        final ActorFuture<Integer> idFuture = idGenerator.nextId();
+        actor.runOnCompletion(idFuture, (id, throwable) -> {
+            if (throwable == null)
+            {
+                LOG.debug("Creating partition with id {} for topic {}", id, topicInfo);
+                sendCreatePartitionRequest(topicInfo, id);
+            }
+            else
+            {
+                LOG.error("Failed to get new partition for topic {}", topicInfo, throwable);
+            }
+        });
+    }
+
+    private void sendCreatePartitionRequest(final TopicInfo topicInfo, final Integer partitionId)
+    {
+        
     }
 
     @Override
@@ -173,5 +205,10 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
     public Injector<Partition> getLeaderSystemPartitionInjector()
     {
         return leaderSystemPartitionInjector;
+    }
+
+    public Injector<IdGenerator> getIdGeneratorInjector()
+    {
+        return idGeneratorInjector;
     }
 }
