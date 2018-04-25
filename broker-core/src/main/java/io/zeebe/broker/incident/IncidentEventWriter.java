@@ -20,11 +20,14 @@ package io.zeebe.broker.incident;
 import static io.zeebe.util.EnsureUtil.ensureGreaterThan;
 import static io.zeebe.util.EnsureUtil.ensureNotNull;
 
-import io.zeebe.broker.incident.data.*;
+import io.zeebe.broker.incident.data.ErrorType;
+import io.zeebe.broker.incident.data.IncidentEvent;
 import io.zeebe.broker.workflow.data.WorkflowInstanceEvent;
 import io.zeebe.logstreams.log.LogStreamWriter;
 import io.zeebe.protocol.Protocol;
-import io.zeebe.protocol.clientapi.EventType;
+import io.zeebe.protocol.clientapi.Intent;
+import io.zeebe.protocol.clientapi.RecordType;
+import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.impl.RecordMetadata;
 
 public class IncidentEventWriter
@@ -94,7 +97,8 @@ public class IncidentEventWriter
 
         incidentEventMetadata.reset()
             .protocolVersion(Protocol.PROTOCOL_VERSION)
-            .valueType(EventType.INCIDENT_EVENT);
+            .valueType(ValueType.INCIDENT)
+            .recordType(RecordType.EVENT);
 
         incidentEvent.reset();
         incidentEvent
@@ -108,13 +112,15 @@ public class IncidentEventWriter
 
         if (!failureEventMetadata.hasIncidentKey())
         {
-            incidentEvent.setState(IncidentState.CREATE);
+            incidentEventMetadata.recordType(RecordType.COMMAND);
+            incidentEventMetadata.intent(Intent.CREATE);
 
             logStreamWriter.positionAsKey();
         }
         else
         {
-            incidentEvent.setState(IncidentState.RESOLVE_FAILED);
+            incidentEventMetadata.recordType(RecordType.EVENT);
+            incidentEventMetadata.intent(Intent.RESOLVE_FAILED);
 
             logStreamWriter.key(failureEventMetadata.getIncidentKey());
         }
