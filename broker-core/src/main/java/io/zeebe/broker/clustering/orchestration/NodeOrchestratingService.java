@@ -94,7 +94,7 @@ public class NodeOrchestratingService extends Actor implements Service<NodeOrche
         {
             if (except == null || except.isEmpty())
             {
-               nextAddressFuture.complete(loads.get(0).getNodeInfo()|);
+               nextAddressFuture.complete(loads.get(0).getNodeInfo());
             }
             else
             {

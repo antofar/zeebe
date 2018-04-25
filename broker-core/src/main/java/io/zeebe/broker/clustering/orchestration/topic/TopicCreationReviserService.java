@@ -5,6 +5,7 @@ import io.zeebe.broker.clustering.base.partitions.Partition;
 import io.zeebe.broker.clustering.base.topology.PartitionInfo;
 import io.zeebe.broker.clustering.base.topology.ReadableTopology;
 import io.zeebe.broker.clustering.base.topology.TopologyManager;
+import io.zeebe.broker.clustering.orchestration.NodeOrchestratingService;
 import io.zeebe.broker.clustering.orchestration.id.IdGenerator;
 import io.zeebe.broker.clustering.orchestration.state.ClusterTopicState;
 import io.zeebe.broker.clustering.orchestration.state.TopicInfo;
@@ -37,6 +38,7 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
     private final Injector<TopologyManager> topologyManagerInjector = new Injector<>();
     private final Injector<Partition> leaderSystemPartitionInjector = new Injector<>();
     private final Injector<IdGenerator> idGeneratorInjector = new Injector<>();
+    private final Injector<NodeOrchestratingService> nodeOrchestratingServiceInjector = new Injector<>();
 
     private ClusterTopicState clusterTopicState;
     private TopologyManager topologyManager;
@@ -141,7 +143,7 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
             final int missingPartitions = desiredPartitionCount - currentPartitionCount;
             if (missingPartitions > 0)
             {
-                LOG.debug("Creating {} partitions for topic {}", desiredTopic);
+                LOG.debug("Creating {} partitions for topic {}", missingPartitions, desiredTopic);
                 for (int i = 0; i < missingPartitions; i++)
                 {
                     createPartition(desiredTopic);
@@ -151,8 +153,6 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
             }
             else
             {
-               //     partitionInfos.size() == desiredTopic.getPartitionCount()
-                // TODO write topic CREATED
                 LOG.debug("Enough partitions created. Current state equals to desired state. Writing Topic {} CREATED.",
                     BufferUtil.bufferAsString(desiredTopic.getTopicName()));
 
@@ -183,7 +183,8 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
 
     private void sendCreatePartitionRequest(final TopicInfo topicInfo, final Integer partitionId)
     {
-        
+
+
     }
 
     @Override
@@ -210,5 +211,10 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
     public Injector<IdGenerator> getIdGeneratorInjector()
     {
         return idGeneratorInjector;
+    }
+
+    public Injector<NodeOrchestratingService> getNodeOrchestratingServiceInjector()
+    {
+        return nodeOrchestratingServiceInjector;
     }
 }

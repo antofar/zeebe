@@ -63,22 +63,24 @@ public class ClusterOrchestrationInstallService implements Service<Void>
                         .dependency(partitionServiceName, idGenerator.getPartitionInjector())
                         .install();
 
+        final NodeOrchestratingService nodeOrchestratingService = new NodeOrchestratingService();
+        compositeInstall.createService(NODE_ORCHESTRATING_SERVICE_NAME, nodeOrchestratingService)
+            .dependency(TOPOLOGY_MANAGER_SERVICE, nodeOrchestratingService.getTopologyManagerInjector())
+            .install();
+
         final TopicCreationReviserService topicCreationReviserService = new TopicCreationReviserService();
         compositeInstall.createService(TOPIC_CREATION_REVISER_SERVICE_NAME, topicCreationReviserService)
                         .dependency(CLUSTER_TOPIC_STATE_SERVICE_NAME, topicCreationReviserService.getStateInjector())
                         .dependency(TOPOLOGY_MANAGER_SERVICE, topicCreationReviserService.getTopologyManagerInjector())
                         .dependency(partitionServiceName, topicCreationReviserService.getLeaderSystemPartitionInjector())
                         .dependency(ID_GENERATOR_SERVICE_NAME, topicCreationReviserService.getIdGeneratorInjector())
+                        .dependency(NODE_ORCHESTRATING_SERVICE_NAME, topicCreationReviserService.getNodeOrchestratingServiceInjector())
                         .install();
 
         compositeInstall.createService(REQUEST_PARTITIONS_MESSAGE_HANDLER_SERVICE_NAME, requestPartitionsMessageHandler)
                         .dependency(CLUSTER_TOPIC_STATE_SERVICE_NAME, requestPartitionsMessageHandler.getClusterTopicStateInjector())
                         .install();
 
-        final NodeOrchestratingService nodeOrchestratingService = new NodeOrchestratingService();
-        compositeInstall.createService(NODE_ORCHESTRATING_SERVICE_NAME, nodeOrchestratingService)
-                        .dependency(TOPOLOGY_MANAGER_SERVICE, nodeOrchestratingService.getTopologyManagerInjector())
-                        .install();
 
         compositeInstall.install();
 
