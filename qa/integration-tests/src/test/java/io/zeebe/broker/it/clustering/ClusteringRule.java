@@ -37,7 +37,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class ClusteringRule extends ExternalResource
 {
-    public static final int DEFAULT_REPLICATION_FACTOR = 3;
+    public static final int DEFAULT_REPLICATION_FACTOR = 1;
 
     public static final String BROKER_1_TOML = "zeebe.cluster.1.cfg.toml";
     public static final SocketAddress BROKER_1_CLIENT_ADDRESS = new SocketAddress("localhost", 51015);
@@ -84,7 +84,7 @@ public class ClusteringRule extends ExternalResource
             brokers.put(brokerAddresses[i], startBroker(brokerConfigs[i]));
         }
 
-        waitForInternalSystemAndReplicationFactor(3);
+        waitForInternalSystemAndReplicationFactor(1);
 
         waitUntilBrokersInTopology(3);
     }
@@ -148,7 +148,7 @@ public class ClusteringRule extends ExternalResource
         final Event topicEvent = zeebeClient.topics()
                                          .create(topicName, partitionCount)
                                          .execute();
-        assertThat(topicEvent.getState()).isEqualTo("CREATED");
+        assertThat(topicEvent.getState()).isEqualTo("CREATING");
 
         waitForTopicPartitionReplicationFactor(topicName, partitionCount, replicationFactor);
 
