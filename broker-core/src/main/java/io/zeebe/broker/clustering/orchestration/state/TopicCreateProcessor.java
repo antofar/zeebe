@@ -61,7 +61,7 @@ public class TopicCreateProcessor implements TypedEventProcessor<TopicEvent>
         final TopicEvent topicEvent = event.getValue();
         if (topicEvent.getState() == TopicState.CREATING)
         {
-            final TopicInfo topicInfo = new TopicInfo(topicEvent);
+            final TopicInfo topicInfo = new TopicInfo(event.getPosition(), topicEvent);
             updateTopicState.accept(topicInfo);
         }
     }

@@ -12,13 +12,15 @@ public class TopicInfo
 {
 
     private final DirectBuffer topicName;
+    private final long createEventPosition;
     private final int partitionCount;
     private final int replicationFactor;
     private Set<Integer> partitionIds = new HashSet<>();
 
-    public TopicInfo(final TopicEvent event)
+    public TopicInfo(long position, final TopicEvent event)
     {
         this.topicName = BufferUtil.cloneBuffer(event.getName());
+        this.createEventPosition = position;
         this.partitionCount = event.getPartitions();
         this.replicationFactor = event.getReplicationFactor();
         event.getPartitionIds().forEach(id -> partitionIds.add(id.getValue()));
@@ -48,6 +50,11 @@ public class TopicInfo
     {
         partitionIds.add(partitionId);
         return this;
+    }
+
+    public long getCreateEventPosition()
+    {
+        return createEventPosition;
     }
 
     @Override

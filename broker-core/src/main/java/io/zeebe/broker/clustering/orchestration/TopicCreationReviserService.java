@@ -1,11 +1,18 @@
 package io.zeebe.broker.clustering.orchestration;
 
 import io.zeebe.broker.Loggers;
+import io.zeebe.broker.clustering.base.partitions.Partition;
 import io.zeebe.broker.clustering.base.topology.PartitionInfo;
 import io.zeebe.broker.clustering.base.topology.ReadableTopology;
 import io.zeebe.broker.clustering.base.topology.TopologyManager;
 import io.zeebe.broker.clustering.orchestration.state.ClusterTopicState;
 import io.zeebe.broker.clustering.orchestration.state.TopicInfo;
+import io.zeebe.broker.logstreams.processor.TypedEvent;
+import io.zeebe.broker.logstreams.processor.TypedStreamEnvironment;
+import io.zeebe.broker.logstreams.processor.TypedStreamReader;
+import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
+import io.zeebe.broker.system.log.TopicEvent;
+import io.zeebe.broker.system.log.TopicState;
 import io.zeebe.servicecontainer.Injector;
 import io.zeebe.servicecontainer.Service;
 import io.zeebe.servicecontainer.ServiceStartContext;
@@ -27,15 +34,24 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
 
     private final Injector<ClusterTopicState> stateInjector = new Injector<>();
     private final Injector<TopologyManager> topologyManagerInjector = new Injector<>();
+    private final Injector<Partition> leaderSystemPartitionInjector = new Injector<>();
 
     private ClusterTopicState clusterTopicState;
     private TopologyManager topologyManager;
+    private Partition leaderSystemPartition;
+    private TypedStreamReader streamReader;
+    private TypedStreamWriter streamWriter;
 
     @Override
     public void start(ServiceStartContext startContext)
     {
         clusterTopicState = stateInjector.getValue();
         topologyManager = topologyManagerInjector.getValue();
+        leaderSystemPartition = leaderSystemPartitionInjector.getValue();
+
+        final TypedStreamEnvironment typedStreamEnvironment = new TypedStreamEnvironment(leaderSystemPartition.getLogStream(), null);
+        streamReader = typedStreamEnvironment.buildStreamReader();
+        streamWriter = typedStreamEnvironment.buildStreamWriter();
 
         startContext.async(startContext.getScheduler().submitActor(this));
     }
@@ -108,7 +124,8 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
         return currentState;
     }
 
-    private void computeStateDifferences(Map<DirectBuffer, TopicInfo> desiredState, Map<DirectBuffer, List<PartitionInfo>> currentState)
+    private void computeStateDifferences(Map<DirectBuffer, TopicInfo> desiredState,
+                                         Map<DirectBuffer, List<PartitionInfo>> currentState)
     {
         for (Map.Entry<DirectBuffer, TopicInfo> desiredEntry : desiredState.entrySet())
         {
@@ -123,11 +140,16 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
             }
             else
             {
-
                //     partitionInfos.size() == desiredTopic.getPartitionCount()
                 // TODO write topic CREATED
                 LOG.debug("Enough partitions created. Current state equals to desired state. Writing Topic {} CREATED.",
                     BufferUtil.bufferAsString(desiredTopic.getTopicName()));
+
+                final TypedEvent<TopicEvent> readEvent = streamReader.readValue(desiredTopic.getCreateEventPosition(), TopicEvent.class);
+                final TopicEvent topicEvent = readEvent.getValue();
+                partitionInfos.forEach(info -> topicEvent.getPartitionIds().add().setValue(info.getPartitionId()));
+                topicEvent.setState(TopicState.CREATED);
+                streamWriter.writeNewEvent(topicEvent);
 
             }
         }
@@ -147,5 +169,10 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
     public Injector<TopologyManager> getTopologyManagerInjector()
     {
         return topologyManagerInjector;
+    }
+
+    public Injector<Partition> getLeaderSystemPartitionInjector()
+    {
+        return leaderSystemPartitionInjector;
     }
 }

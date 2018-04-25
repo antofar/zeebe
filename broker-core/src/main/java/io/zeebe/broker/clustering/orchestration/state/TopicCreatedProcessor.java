@@ -37,6 +37,6 @@ public class TopicCreatedProcessor implements TypedEventProcessor<TopicEvent>
     @Override
     public void updateState(final TypedEvent<TopicEvent> event)
     {
-        updateTopicState.accept(new TopicInfo(event.getValue()));
+        updateTopicState.accept(new TopicInfo(event.getPosition(), event.getValue()));
     }
 }

@@ -79,7 +79,8 @@ public class PartitionCreatedProcessor implements TypedEventProcessor<PartitionE
     {
         if (createRequest != null)
         {
-            return writer.writeFollowupEvent(createRequest.getKey(), createRequest.getValue());
+//            return writer.writeFollowupEvent(createRequest.getKey(), createRequest.getValue());
+            return 0;
         }
         else
         {
