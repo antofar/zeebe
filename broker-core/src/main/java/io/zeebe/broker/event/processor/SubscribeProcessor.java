@@ -22,6 +22,7 @@ import io.zeebe.logstreams.log.LogStreamWriter;
 import io.zeebe.logstreams.log.LoggedEvent;
 import io.zeebe.logstreams.processor.EventProcessor;
 import io.zeebe.protocol.Protocol;
+import io.zeebe.protocol.clientapi.Intent;
 import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.util.sched.future.ActorFuture;
 import org.agrona.DirectBuffer;
@@ -215,11 +216,12 @@ public class SubscribeProcessor implements EventProcessor
         @Override
         public long writeEvent(LogStreamWriter writer)
         {
-            metadata.protocolVersion(Protocol.PROTOCOL_VERSION);
+            metadata
+                .protocolVersion(Protocol.PROTOCOL_VERSION)
+                .intent(Intent.SUBSCRIBED);
 
             subscriberEvent
-                .setStartPosition(processor.getStartPosition())
-                .setState(TopicSubscriberState.SUBSCRIBED);
+                .setStartPosition(processor.getStartPosition());
 
             return writer
                 .metadataWriter(metadata)
