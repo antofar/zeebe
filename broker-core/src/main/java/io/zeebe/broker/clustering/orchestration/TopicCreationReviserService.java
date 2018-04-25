@@ -9,16 +9,20 @@ import io.zeebe.servicecontainer.Injector;
 import io.zeebe.servicecontainer.Service;
 import io.zeebe.servicecontainer.ServiceStartContext;
 import io.zeebe.servicecontainer.ServiceStopContext;
+import io.zeebe.util.buffer.BufferUtil;
 import io.zeebe.util.sched.Actor;
 import io.zeebe.util.sched.future.ActorFuture;
 import org.agrona.DirectBuffer;
+import org.slf4j.Logger;
 
 import java.time.Duration;
 import java.util.*;
 
 public class TopicCreationReviserService extends Actor implements Service<Void>
 {
+    private static final Logger LOG = Loggers.ORCHESTRATION_LOGGER;
     public static final Duration TIMER_RATE = Duration.ofSeconds(1);
+
 
     private final Injector<ClusterTopicState> stateInjector = new Injector<>();
     private final Injector<TopologyManager> topologyManagerInjector = new Injector<>();
@@ -88,7 +92,16 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
                             final List<PartitionInfo> partitionInfos = currentState.get(desiredTopic.getTopicName());
                             if (partitionInfos == null || partitionInfos.size() < desiredTopic.getPartitionCount())
                             {
+                                LOG.debug("Send create partition");
                                 // TODO no partitions or not enough for this topic so we create partitions requests
+                                // we need Id generation for that
+                            }
+                            else
+                            {
+                               //     partitionInfos.size() == desiredTopic.getPartitionCount()
+                                // TODO write topic CREATED
+                                LOG.debug("Enough partitions created. Current state equals to desired state. Writing Topic {} CREATED.",
+                                    BufferUtil.bufferAsString(desiredTopic.getTopicName()));
                             }
                         }
                     }
@@ -116,5 +129,10 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
     public Injector<ClusterTopicState> getStateInjector()
     {
         return stateInjector;
+    }
+
+    public Injector<TopologyManager> getTopologyManagerInjector()
+    {
+        return topologyManagerInjector;
     }
 }

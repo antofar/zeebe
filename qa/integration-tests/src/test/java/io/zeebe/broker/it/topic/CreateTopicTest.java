@@ -57,8 +57,8 @@ public class CreateTopicTest
     @Rule
     public ExpectedException thrown = ExpectedException.none();
 
-    @Rule
-    public Timeout testTimeout = Timeout.seconds(20);
+//    @Rule
+//    public Timeout testTimeout = Timeout.seconds(20);
 
     @Test
     public void shouldCreateTaskOnNewTopic()

@@ -17,7 +17,7 @@
  */
 package io.zeebe.broker.clustering;
 
-import static io.zeebe.broker.clustering.orchestration.ClusterOrchestrationLayerSerivceNames.CLUSTER_TOPIC_STATE_INSTALL_SERVICE_NAME;
+import static io.zeebe.broker.clustering.orchestration.ClusterOrchestrationLayerSerivceNames.CLUSTER_ORCHESTRATION_INSTALL_SERVICE_NAME;
 import static io.zeebe.broker.transport.TransportServiceNames.*;
 
 import io.zeebe.broker.Loggers;
@@ -28,7 +28,7 @@ import io.zeebe.broker.clustering.base.gossip.GossipJoinService;
 import io.zeebe.broker.clustering.base.gossip.GossipService;
 import io.zeebe.broker.clustering.base.raft.config.RaftPersistentConfigurationManagerService;
 import io.zeebe.broker.clustering.base.topology.TopologyManagerService;
-import io.zeebe.broker.clustering.orchestration.state.ClusterTopicStateInstallService;
+import io.zeebe.broker.clustering.orchestration.ClusterOrchestrationInstallService;
 import io.zeebe.broker.logstreams.cfg.LogStreamsCfg;
 
 import static io.zeebe.broker.clustering.base.ClusterBaseLayerServiceNames.*;
@@ -161,10 +161,10 @@ public class ClusterComponent implements Component
 
     private void initClusterOrchestrationLayer(final ServiceContainer serviceContainer)
     {
-        final ClusterTopicStateInstallService clusterTopicStateInstallService = new ClusterTopicStateInstallService();
+        final ClusterOrchestrationInstallService clusterOrchestrationInstallService = new ClusterOrchestrationInstallService();
 
-        serviceContainer.createService(CLUSTER_TOPIC_STATE_INSTALL_SERVICE_NAME, clusterTopicStateInstallService)
-                        .groupReference(LEADER_PARTITION_SYSTEM_GROUP_NAME, clusterTopicStateInstallService.getSystemLeaderGroupReference())
+        serviceContainer.createService(CLUSTER_ORCHESTRATION_INSTALL_SERVICE_NAME, clusterOrchestrationInstallService)
+                        .groupReference(LEADER_PARTITION_SYSTEM_GROUP_NAME, clusterOrchestrationInstallService.getSystemLeaderGroupReference())
                         .install();
     }
 }
