@@ -18,14 +18,14 @@
 package io.zeebe.broker.clustering.orchestration.topic;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.api.CreatePartitionRequest;
 import io.zeebe.broker.clustering.base.partitions.Partition;
 import io.zeebe.broker.clustering.base.topology.NodeInfo;
 import io.zeebe.broker.clustering.base.topology.PartitionInfo;
-import io.zeebe.broker.clustering.base.topology.ReadableTopology;
 import io.zeebe.broker.clustering.base.topology.TopologyManager;
 import io.zeebe.broker.clustering.orchestration.NodeOrchestratingService;
 import io.zeebe.broker.clustering.orchestration.id.IdGenerator;
@@ -122,7 +122,7 @@ public class TopicCreationReviserService extends Actor implements Service<TopicC
 
     private void checkDesiredState(final Map<DirectBuffer, TopicInfo> desiredState)
     {
-        final ActorFuture<Map<DirectBuffer, List<PartitionInfo>>> queryFuture = topologyManager.query(this::computeCurrentState);
+        final ActorFuture<ClusterPartitionState> queryFuture = topologyManager.query(ClusterPartitionState::computeCurrentState);
 
         actor.runOnCompletion(queryFuture, (currentState, error) ->
         {
@@ -137,35 +137,15 @@ public class TopicCreationReviserService extends Actor implements Service<TopicC
         });
     }
 
-    private Map<DirectBuffer, List<PartitionInfo>> computeCurrentState(final ReadableTopology readableTopology)
-    {
-        final Map<DirectBuffer, List<PartitionInfo>> currentState = new HashMap<>();
-
-        final Collection<PartitionInfo> partitions = readableTopology.getPartitions();
-
-        partitions.forEach(partitionInfo ->
-            currentState.compute(partitionInfo.getTopicName(),
-                (s, partitionInfos) ->
-                {
-                    if (partitionInfos == null)
-                    {
-                        partitionInfos = new ArrayList<>();
-                    }
-                    partitionInfos.add(partitionInfo);
-                    return partitionInfos;
-                }));
-
-        return currentState;
-    }
-
     private void computeStateDifferences(final Map<DirectBuffer, TopicInfo> desiredState,
-                                         final Map<DirectBuffer, List<PartitionInfo>> currentState)
+                                         final ClusterPartitionState currentState)
     {
+
         for (final Map.Entry<DirectBuffer, TopicInfo> desiredEntry : desiredState.entrySet())
         {
             final TopicInfo desiredTopic = desiredEntry.getValue();
 
-            final List<PartitionInfo> partitionInfos = currentState.getOrDefault(desiredTopic.getTopicNameBuffer(), Collections.emptyList());
+            final List<PartitionInfo> partitionInfos = currentState.getPartitions(desiredTopic.getTopicNameBuffer());
             final int missingPartitions = desiredTopic.getPartitionCount() - partitionInfos.size();
             if (missingPartitions > 0)
             {
