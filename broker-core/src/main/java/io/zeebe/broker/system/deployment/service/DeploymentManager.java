@@ -31,7 +31,6 @@ import io.zeebe.broker.system.deployment.data.PendingDeployments;
 import io.zeebe.broker.system.deployment.data.PendingWorkflows;
 import io.zeebe.broker.system.deployment.data.TopicPartitions;
 import io.zeebe.broker.system.deployment.data.WorkflowVersions;
-import io.zeebe.broker.system.deployment.handler.DeploymentEventWriter;
 import io.zeebe.broker.system.deployment.handler.DeploymentTimer;
 import io.zeebe.broker.system.deployment.handler.RemoteWorkflowsManager;
 import io.zeebe.broker.system.deployment.processor.DeploymentCreateProcessor;
@@ -78,7 +77,6 @@ public class DeploymentManager implements Service<DeploymentManager>
     @Override
     public void start(ServiceStartContext startContext)
     {
-        serviceContext = startContext;
         topologyManager = topologyManagerInjector.getValue();
         managementClient = managementClientInjector.getValue();
         clientApiTransport = clientApiTransportInjector.getValue();
@@ -109,7 +107,6 @@ public class DeploymentManager implements Service<DeploymentManager>
             pendingWorkflows,
             deploymentRequestTimeout,
             streamEnvironment,
-            deploymentEventWriter,
             remoteManager);
 
         streamProcessorServiceFactory.createService(partition, partitionServiceName)
@@ -125,7 +122,6 @@ public class DeploymentManager implements Service<DeploymentManager>
             final PendingWorkflows pendingWorkflows,
             final Duration deploymentTimeout,
             final TypedStreamEnvironment streamEnvironment,
-            final DeploymentEventWriter eventWriter,
             final RemoteWorkflowsManager remoteManager)
     {
 
@@ -135,7 +131,7 @@ public class DeploymentManager implements Service<DeploymentManager>
         partitionCollector.registerWith(streamProcessorBuilder);
         final TopicPartitions partitions = partitionCollector.getPartitions();
 
-        final DeploymentTimer timer = new DeploymentTimer(pendingDeployments, eventWriter, deploymentTimeout);
+        final DeploymentTimer timer = new DeploymentTimer(pendingDeployments, deploymentTimeout);
 
         final TypedStreamProcessor streamProcessor = streamProcessorBuilder
             .onCommand(ValueType.DEPLOYMENT, Intent.CREATE, new DeploymentCreateProcessor(partitions, workflowVersions, pendingDeployments))
@@ -148,7 +144,6 @@ public class DeploymentManager implements Service<DeploymentManager>
             .withStateResource(workflowVersions.getRawMap())
             .withStateResource(pendingDeployments.getRawMap())
             .withStateResource(pendingWorkflows.getRawMap())
-            .withListener(eventWriter)
             .withListener(timer)
             .withListener(remoteManager)
             .build();

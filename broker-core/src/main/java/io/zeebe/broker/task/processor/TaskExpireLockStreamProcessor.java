@@ -33,7 +33,6 @@ import io.zeebe.broker.logstreams.processor.TypedStreamReader;
 import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
 import io.zeebe.broker.task.TaskQueueManagerService;
 import io.zeebe.broker.task.data.TaskEvent;
-import io.zeebe.broker.task.data.TaskState;
 import io.zeebe.map.Long2BytesZbMap;
 import io.zeebe.map.iterator.Long2BytesZbMapEntry;
 import io.zeebe.protocol.clientapi.Intent;
@@ -49,19 +48,16 @@ public class TaskExpireLockStreamProcessor implements StreamProcessorLifecycleAw
 
     private UnsafeBuffer mapAccessBuffer = new UnsafeBuffer(new byte[MAP_VALUE_MAX_LENGTH]);
 
-    private final TaskEventWriter streamWriter;
-
     private ScheduledTimer timer;
-
-    public TaskExpireLockStreamProcessor(TypedStreamReader streamReader, TypedStreamWriter streamWriter)
-    {
-        this.streamWriter = new TaskEventWriter(streamWriter, streamReader);
-    }
+    private TypedStreamWriter writer;
+    private TypedStreamReader reader;
 
     @Override
     public void onOpen(TypedStreamProcessor streamProcessor)
     {
         timer = streamProcessor.getActor().runAtFixedRate(TaskQueueManagerService.LOCK_EXPIRATION_INTERVAL, this::timeOutTasks);
+        this.writer = streamProcessor.getEnvironment().buildStreamWriter();
+        this.reader = streamProcessor.getEnvironment().buildStreamReader();
     }
 
     @Override
@@ -73,7 +69,8 @@ public class TaskExpireLockStreamProcessor implements StreamProcessorLifecycleAw
             timer = null;
         }
 
-        streamWriter.close();
+        // TODO: check all locations where we need to close readers
+        this.reader.close();
     }
 
     private void timeOutTasks()
@@ -94,7 +91,10 @@ public class TaskExpireLockStreamProcessor implements StreamProcessorLifecycleAw
                 // TODO: would be nicer to have a consumable channel for timed-out timers
                 //   that we can stop consuming/yield on backpressure
 
-                final boolean success = streamWriter.tryWriteTaskEvent(eventPosition, TaskState.EXPIRE_LOCK);
+                final TypedRecord<TaskEvent> event = reader.readValue(eventPosition, TaskEvent.class);
+                final long position = writer.writeCommand(event.getKey(), Intent.EXPIRE_LOCK, event.getValue());
+                final boolean success = position >= 0;
+
                 if (!success)
                 {
                     return;
