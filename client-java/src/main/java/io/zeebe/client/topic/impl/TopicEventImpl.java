@@ -15,12 +15,8 @@
  */
 package io.zeebe.client.topic.impl;
 
-import java.util.HashSet;
-import java.util.Set;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import io.zeebe.client.event.TopicEventType;
 import io.zeebe.client.event.impl.EventImpl;
 

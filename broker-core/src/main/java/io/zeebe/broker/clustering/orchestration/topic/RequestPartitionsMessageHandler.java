@@ -22,7 +22,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import io.zeebe.broker.clustering.orchestration.state.ClusterTopicState;
 import io.zeebe.broker.clustering.orchestration.state.TopicInfo;
-import io.zeebe.broker.system.log.PartitionsResponse;
 import io.zeebe.broker.transport.controlmessage.AbstractControlMessageHandler;
 import io.zeebe.protocol.Protocol;
 import io.zeebe.protocol.clientapi.ControlMessageType;

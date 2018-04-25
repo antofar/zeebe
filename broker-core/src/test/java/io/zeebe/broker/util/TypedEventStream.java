@@ -20,7 +20,7 @@ package io.zeebe.broker.util;
 import java.util.stream.Stream;
 
 import io.zeebe.broker.incident.data.IncidentEvent;
-import io.zeebe.broker.system.log.TopicEvent;
+import io.zeebe.broker.clustering.orchestration.topic.TopicEvent;
 import io.zeebe.broker.task.data.TaskEvent;
 import io.zeebe.broker.topic.Events;
 import io.zeebe.broker.workflow.data.DeploymentEvent;

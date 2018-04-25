@@ -19,7 +19,7 @@ package io.zeebe.broker.topic;
 
 import org.agrona.DirectBuffer;
 
-import io.zeebe.broker.system.log.TopicEvent;
+import io.zeebe.broker.clustering.orchestration.topic.TopicEvent;
 import io.zeebe.broker.task.data.TaskEvent;
 import io.zeebe.broker.workflow.data.DeploymentEvent;
 import io.zeebe.logstreams.log.LoggedEvent;

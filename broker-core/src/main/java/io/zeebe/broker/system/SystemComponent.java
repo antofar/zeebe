@@ -24,7 +24,6 @@ import static io.zeebe.broker.logstreams.LogStreamServiceNames.*;
 
 import io.zeebe.broker.system.deployment.service.DeploymentManager;
 import io.zeebe.broker.system.deployment.service.WorkflowRequestMessageHandlerService;
-import io.zeebe.broker.system.log.SystemPartitionManager;
 import io.zeebe.broker.system.metrics.MetricsFileWriterService;
 import io.zeebe.broker.system.metrics.cfg.MetricsCfg;
 import io.zeebe.servicecontainer.ServiceContainer;
@@ -45,15 +44,6 @@ public class SystemComponent implements Component
             .install();
 
         final SystemConfiguration systemConfiguration = context.getConfigurationManager().readEntry("system", SystemConfiguration.class);
-
-        final SystemPartitionManager systemPartitionManager = new SystemPartitionManager(systemConfiguration);
-        serviceContainer.createService(SYSTEM_LOG_MANAGER, systemPartitionManager)
-            .dependency(serverTransport(CLIENT_API_SERVER_NAME), systemPartitionManager.getClientApiTransportInjector())
-            .dependency(STREAM_PROCESSOR_SERVICE_FACTORY, systemPartitionManager.getStreamProcessorServiceFactoryInjector())
-            .dependency(TOPOLOGY_MANAGER_SERVICE, systemPartitionManager.getTopologyManagerInjector())
-            .dependency(clientTransportServiceName, systemPartitionManager.getClientTransportInjector())
-            .groupReference(LEADER_PARTITION_SYSTEM_GROUP_NAME, systemPartitionManager.getPartitionsGroupReference())
-            .install();
 
         final DeploymentManager deploymentManagerService = new DeploymentManager(systemConfiguration);
         serviceContainer.createService(DEPLOYMENT_MANAGER_SERVICE, deploymentManagerService)

@@ -1,3 +1,20 @@
+/*
+ * Zeebe Broker Core
+ * Copyright © 2017 camunda services GmbH (info@camunda.com)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 package io.zeebe.broker.clustering.orchestration;
 
 import io.zeebe.broker.clustering.base.topology.NodeInfo;
@@ -12,7 +29,7 @@ public class NodeLoad
     private final NodeInfo nodeInfo;
     private Set<PartitionInfo> load;
 
-    public NodeLoad(NodeInfo nodeInfo)
+    public NodeLoad(final NodeInfo nodeInfo)
     {
         this.nodeInfo = nodeInfo;
         this.load = new HashSet<>();
@@ -28,7 +45,7 @@ public class NodeLoad
         return load;
     }
 
-    public boolean addPartition(PartitionInfo partitionInfo)
+    public boolean addPartition(final PartitionInfo partitionInfo)
     {
         return load.add(partitionInfo);
     }
@@ -43,7 +60,7 @@ public class NodeLoad
     }
 
     @Override
-    public boolean equals(Object o)
+    public boolean equals(final Object o)
     {
         if (this == o)
         {
@@ -53,7 +70,7 @@ public class NodeLoad
         {
             return false;
         }
-        NodeLoad nodeLoad = (NodeLoad) o;
+        final NodeLoad nodeLoad = (NodeLoad) o;
         return Objects.equals(nodeInfo, nodeLoad.nodeInfo);
     }
 

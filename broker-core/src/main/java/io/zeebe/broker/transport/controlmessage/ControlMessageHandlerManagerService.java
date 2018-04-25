@@ -24,7 +24,6 @@ import io.zeebe.broker.clustering.base.topology.RequestTopologyHandler;
 import io.zeebe.broker.clustering.base.topology.TopologyManager;
 import io.zeebe.broker.event.handler.RemoveTopicSubscriptionHandler;
 import io.zeebe.broker.event.processor.TopicSubscriptionService;
-import io.zeebe.broker.system.log.SystemPartitionManager;
 import io.zeebe.broker.task.TaskSubscriptionManager;
 import io.zeebe.dispatcher.Dispatcher;
 import io.zeebe.servicecontainer.Injector;
@@ -41,7 +40,6 @@ public class ControlMessageHandlerManagerService implements Service<ControlMessa
     protected final Injector<Dispatcher> controlMessageBufferInjector = new Injector<>();
     protected final Injector<TaskSubscriptionManager> taskSubscriptionManagerInjector = new Injector<>();
     protected final Injector<TopicSubscriptionService> topicSubscriptionServiceInjector = new Injector<>();
-    protected final Injector<SystemPartitionManager> systemPartitionManagerInjector = new Injector<>();
     private final Injector<TopologyManager> topologyManagerInjector = new Injector<>();
 
     protected final long controlMessageRequestTimeoutInMillis;
@@ -63,7 +61,6 @@ public class ControlMessageHandlerManagerService implements Service<ControlMessa
 
         final TaskSubscriptionManager taskSubscriptionManager = taskSubscriptionManagerInjector.getValue();
         final TopicSubscriptionService topicSubscriptionService = topicSubscriptionServiceInjector.getValue();
-        final SystemPartitionManager systemPartitionManager = systemPartitionManagerInjector.getValue();
 
         final ServerOutput output = transport.getOutput();
 
@@ -115,11 +112,6 @@ public class ControlMessageHandlerManagerService implements Service<ControlMessa
     public Injector<TopicSubscriptionService> getTopicSubscriptionServiceInjector()
     {
         return topicSubscriptionServiceInjector;
-    }
-
-    public Injector<SystemPartitionManager> getSystemPartitionManagerInjector()
-    {
-        return systemPartitionManagerInjector;
     }
 
     public Injector<TopologyManager> getTopologyManagerInjector()

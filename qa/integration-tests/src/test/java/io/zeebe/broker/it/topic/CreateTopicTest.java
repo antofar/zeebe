@@ -24,14 +24,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import io.zeebe.client.clustering.impl.BrokerPartitionState;
-import io.zeebe.client.clustering.impl.TopologyResponse;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.rules.RuleChain;
-import org.junit.rules.Timeout;
-
 import io.zeebe.broker.it.ClientRule;
 import io.zeebe.broker.it.EmbeddedBrokerRule;
 import io.zeebe.client.TopicsClient;
@@ -40,10 +32,14 @@ import io.zeebe.client.event.TaskEvent;
 import io.zeebe.client.topic.Partition;
 import io.zeebe.client.topic.Topic;
 import io.zeebe.client.topic.Topics;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.junit.rules.RuleChain;
+import org.junit.rules.Timeout;
 
 public class CreateTopicTest
 {
-
 
     public EmbeddedBrokerRule brokerRule = new EmbeddedBrokerRule();
 
@@ -57,8 +53,8 @@ public class CreateTopicTest
     @Rule
     public ExpectedException thrown = ExpectedException.none();
 
-//    @Rule
-//    public Timeout testTimeout = Timeout.seconds(20);
+    @Rule
+    public Timeout testTimeout = Timeout.seconds(20);
 
     @Test
     public void shouldCreateTaskOnNewTopic()

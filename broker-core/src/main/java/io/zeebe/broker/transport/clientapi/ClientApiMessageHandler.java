@@ -23,7 +23,7 @@ import java.util.function.Consumer;
 import io.zeebe.broker.clustering.base.partitions.Partition;
 import io.zeebe.broker.event.processor.TopicSubscriberEvent;
 import io.zeebe.broker.event.processor.TopicSubscriptionEvent;
-import io.zeebe.broker.system.log.TopicEvent;
+import io.zeebe.broker.clustering.orchestration.topic.TopicEvent;
 import io.zeebe.broker.task.data.TaskEvent;
 import io.zeebe.broker.transport.controlmessage.ControlMessageRequestHeaderDescriptor;
 import io.zeebe.broker.workflow.data.DeploymentEvent;

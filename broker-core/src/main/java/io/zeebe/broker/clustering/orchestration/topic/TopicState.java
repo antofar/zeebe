@@ -15,15 +15,13 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package io.zeebe.broker.system.log;
+package io.zeebe.broker.clustering.orchestration.topic;
 
-import io.zeebe.transport.SocketAddress;
-
-public interface PartitionCreatorSelectionStrategy
+public enum TopicState
 {
 
-    /**
-     * @return may return null when there is no suitable broker available
-     */
-    SocketAddress selectBrokerForNewPartition();
+    CREATE,
+    CREATING,
+    CREATE_REJECTED,
+    CREATED
 }
