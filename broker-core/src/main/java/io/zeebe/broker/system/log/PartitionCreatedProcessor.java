@@ -19,6 +19,7 @@ package io.zeebe.broker.system.log;
 
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.logstreams.processor.*;
+import io.zeebe.protocol.clientapi.Intent;
 import io.zeebe.util.buffer.BufferUtil;
 import org.agrona.DirectBuffer;
 
@@ -27,7 +28,8 @@ public class PartitionCreatedProcessor implements TypedRecordProcessor<Partition
     protected final TopicsIndex topics;
     protected final TypedStreamReader reader;
 
-    protected TypedRecord<TopicEvent> createRequest;
+    protected TypedRecord<TopicEvent> createCommand;
+    private boolean topicCreationComplete;
 
     public PartitionCreatedProcessor(TopicsIndex topics, TypedStreamReader reader)
     {
@@ -36,19 +38,18 @@ public class PartitionCreatedProcessor implements TypedRecordProcessor<Partition
     }
 
     @Override
-    public void processEvent(TypedRecord<PartitionEvent> event)
+    public void processRecord(TypedRecord<PartitionEvent> event)
     {
         final PartitionEvent value = event.getValue();
 
         final DirectBuffer topicName = value.getTopicName();
         topics.moveTo(topicName);
 
-        final boolean topicCreationComplete = topics.getRemainingPartitions() == 1; // == 1 because this is the last partition
+        topicCreationComplete = topics.getRemainingPartitions() == 1; // == 1 because this is the last partition
 
         if (topicCreationComplete)
         {
-            createRequest = reader.readValue(topics.getRequestPosition(), TopicEvent.class);
-            createRequest.getValue().setState(TopicState.CREATED);
+            createCommand = reader.readValue(topics.getRequestPosition(), TopicEvent.class);
 
             Loggers.SYSTEM_LOGGER.debug("Topic '{}' created.", BufferUtil.bufferAsString(topicName));
         }
@@ -57,16 +58,16 @@ public class PartitionCreatedProcessor implements TypedRecordProcessor<Partition
             Loggers.SYSTEM_LOGGER.debug("Partition '{}' created. Topic '{}' has {} remaining partitions.",
                 value.getPartitionId(), BufferUtil.bufferAsString(topicName), topics.getRemainingPartitions());
 
-            createRequest = null;
+            createCommand = null;
         }
     }
 
     @Override
     public boolean executeSideEffects(TypedRecord<PartitionEvent> event, TypedResponseWriter responseWriter)
     {
-        if (createRequest != null)
+        if (topicCreationComplete)
         {
-            return responseWriter.write(createRequest);
+            return responseWriter.writeEvent(Intent.CREATED, createCommand);
         }
         else
         {
@@ -77,9 +78,9 @@ public class PartitionCreatedProcessor implements TypedRecordProcessor<Partition
     @Override
     public long writeRecord(TypedRecord<PartitionEvent> event, TypedStreamWriter writer)
     {
-        if (createRequest != null)
+        if (createCommand != null)
         {
-            return writer.writeFollowupEvent(createRequest.getKey(), createRequest.getValue());
+            return writer.writeEvent(event.getKey(), Intent.CREATED, createCommand.getValue());
         }
         else
         {

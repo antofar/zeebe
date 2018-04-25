@@ -20,15 +20,11 @@ package io.zeebe.broker.system.log;
 import org.agrona.DirectBuffer;
 
 import io.zeebe.msgpack.UnpackedObject;
-import io.zeebe.msgpack.property.EnumProperty;
 import io.zeebe.msgpack.property.IntegerProperty;
 import io.zeebe.msgpack.property.StringProperty;
 
 public class TopicEvent extends UnpackedObject
 {
-
-    protected final EnumProperty<TopicState> state = new EnumProperty<>("state", TopicState.class);
-
     protected final StringProperty name = new StringProperty("name");
     protected final IntegerProperty partitions = new IntegerProperty("partitions");
     protected final IntegerProperty replicationFactor = new IntegerProperty("replicationFactor", 1);
@@ -36,20 +32,9 @@ public class TopicEvent extends UnpackedObject
     public TopicEvent()
     {
         this
-            .declareProperty(state)
             .declareProperty(name)
             .declareProperty(partitions)
             .declareProperty(replicationFactor);
-    }
-
-    public TopicState getState()
-    {
-        return state.getValue();
-    }
-
-    public void setState(TopicState state)
-    {
-        this.state.setValue(state);
     }
 
     public DirectBuffer getName()

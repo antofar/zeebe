@@ -19,16 +19,25 @@ package io.zeebe.broker.system.log;
 
 import java.time.Duration;
 
+import org.agrona.DirectBuffer;
+
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.api.CreatePartitionRequest;
 import io.zeebe.broker.clustering.base.topology.TopologyDto.BrokerDto;
-import io.zeebe.broker.logstreams.processor.*;
-import io.zeebe.transport.*;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
+import io.zeebe.broker.logstreams.processor.TypedRecordProcessor;
+import io.zeebe.broker.logstreams.processor.TypedResponseWriter;
+import io.zeebe.broker.logstreams.processor.TypedStreamProcessor;
+import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
+import io.zeebe.protocol.clientapi.Intent;
+import io.zeebe.transport.ClientResponse;
+import io.zeebe.transport.ClientTransport;
+import io.zeebe.transport.RemoteAddress;
+import io.zeebe.transport.SocketAddress;
 import io.zeebe.util.buffer.BufferUtil;
 import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.clock.ActorClock;
 import io.zeebe.util.sched.future.ActorFuture;
-import org.agrona.DirectBuffer;
 
 public class CreatePartitionProcessor implements TypedRecordProcessor<PartitionEvent>
 {
@@ -55,10 +64,9 @@ public class CreatePartitionProcessor implements TypedRecordProcessor<PartitionE
     }
 
     @Override
-    public void processEvent(TypedRecord<PartitionEvent> event)
+    public void processRecord(TypedRecord<PartitionEvent> event)
     {
         final PartitionEvent value = event.getValue();
-        value.setState(PartitionState.CREATING);
 
         final long now = ActorClock.currentTimeMillis();
         value.setCreationTimeout(now + creationTimeoutMillis);
@@ -107,7 +115,7 @@ public class CreatePartitionProcessor implements TypedRecordProcessor<PartitionE
     @Override
     public long writeRecord(TypedRecord<PartitionEvent> event, TypedStreamWriter writer)
     {
-        return writer.writeFollowupEvent(event.getKey(), event.getValue());
+        return writer.writeEvent(event.getKey(), Intent.CREATING, event.getValue());
     }
 
     @Override

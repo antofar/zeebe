@@ -43,7 +43,7 @@ public class DeploymentValidatedProcessor implements TypedRecordProcessor<Deploy
     }
 
     @Override
-    public void processEvent(TypedRecord<DeploymentEvent> event)
+    public void processRecord(TypedRecord<DeploymentEvent> event)
     {
         // just add the event position to the index
 

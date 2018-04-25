@@ -19,15 +19,21 @@ package io.zeebe.broker.system.deployment.processor;
 
 import static io.zeebe.util.EnsureUtil.ensureGreaterThan;
 
-import io.zeebe.broker.logstreams.processor.*;
-import io.zeebe.broker.system.deployment.data.*;
+import org.agrona.collections.IntArrayList;
+
+import io.zeebe.broker.logstreams.processor.TypedRecord;
+import io.zeebe.broker.logstreams.processor.TypedRecordProcessor;
+import io.zeebe.broker.logstreams.processor.TypedResponseWriter;
+import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
+import io.zeebe.broker.system.deployment.data.PendingDeployments;
 import io.zeebe.broker.system.deployment.data.PendingDeployments.PendingDeployment;
+import io.zeebe.broker.system.deployment.data.PendingWorkflows;
 import io.zeebe.broker.system.deployment.data.PendingWorkflows.PendingWorkflow;
 import io.zeebe.broker.system.deployment.data.PendingWorkflows.PendingWorkflowIterator;
+import io.zeebe.broker.system.deployment.data.WorkflowVersions;
 import io.zeebe.broker.system.deployment.handler.RemoteWorkflowsManager;
 import io.zeebe.broker.workflow.data.WorkflowEvent;
-import io.zeebe.broker.workflow.data.WorkflowState;
-import org.agrona.collections.IntArrayList;
+import io.zeebe.protocol.clientapi.Intent;
 
 public class WorkflowDeleteProcessor implements TypedRecordProcessor<WorkflowEvent>
 {
@@ -52,10 +58,8 @@ public class WorkflowDeleteProcessor implements TypedRecordProcessor<WorkflowEve
     }
 
     @Override
-    public void processEvent(TypedRecord<WorkflowEvent> event)
+    public void processRecord(TypedRecord<WorkflowEvent> event)
     {
-        event.getValue().setState(WorkflowState.DELETED);
-
         final long workflowKey = event.getKey();
 
         partitionIds.clear();
@@ -86,7 +90,7 @@ public class WorkflowDeleteProcessor implements TypedRecordProcessor<WorkflowEve
     @Override
     public long writeRecord(TypedRecord<WorkflowEvent> event, TypedStreamWriter writer)
     {
-        return writer.writeFollowupEvent(event.getKey(), event.getValue());
+        return writer.writeEvent(event.getKey(), Intent.DELETED, event.getValue());
     }
 
     @Override

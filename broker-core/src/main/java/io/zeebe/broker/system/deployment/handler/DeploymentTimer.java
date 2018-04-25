@@ -22,27 +22,31 @@ import java.time.Duration;
 import org.agrona.collections.Long2ObjectHashMap;
 
 import io.zeebe.broker.logstreams.processor.StreamProcessorLifecycleAware;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.broker.logstreams.processor.TypedStreamProcessor;
+import io.zeebe.broker.logstreams.processor.TypedStreamReader;
+import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
 import io.zeebe.broker.system.deployment.data.PendingDeployments;
 import io.zeebe.broker.system.deployment.data.PendingDeployments.PendingDeployment;
-import io.zeebe.broker.workflow.data.DeploymentState;
+import io.zeebe.broker.workflow.data.DeploymentEvent;
+import io.zeebe.protocol.clientapi.Intent;
 import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.ScheduledTimer;
 
 public class DeploymentTimer implements StreamProcessorLifecycleAware
 {
     private final PendingDeployments pendingDeployments;
-    private final DeploymentEventWriter writer;
     private final Duration deploymentTimeout;
 
     private ActorControl actor;
+    private TypedStreamReader reader;
+    private TypedStreamWriter writer;
 
     private Long2ObjectHashMap<ScheduledTimer> timers = new Long2ObjectHashMap<>();
 
-    public DeploymentTimer(PendingDeployments deployments, DeploymentEventWriter writer, Duration deploymentTimeout)
+    public DeploymentTimer(PendingDeployments deployments, Duration deploymentTimeout)
     {
         this.pendingDeployments = deployments;
-        this.writer = writer;
         this.deploymentTimeout = deploymentTimeout;
     }
 
@@ -50,6 +54,8 @@ public class DeploymentTimer implements StreamProcessorLifecycleAware
     public void onOpen(TypedStreamProcessor streamProcessor)
     {
         this.actor = streamProcessor.getActor();
+        this.reader = streamProcessor.getEnvironment().buildStreamReader();
+        this.writer = streamProcessor.getEnvironment().buildStreamWriter();
 
         for (PendingDeployment deployment : pendingDeployments)
         {
@@ -96,7 +102,22 @@ public class DeploymentTimer implements StreamProcessorLifecycleAware
 
         if (deployment != null)
         {
-            writer.writeDeploymentEvent(deployment.getDeploymentEventPosition(), DeploymentState.TIMED_OUT);
+            final TypedRecord<DeploymentEvent> deploymentEvent = reader.readValue(deployment.getDeploymentEventPosition(), DeploymentEvent.class);
+
+            actor.runUntilDone(() ->
+            {
+                final long position = writer.writeEvent(deploymentEvent.getKey(), Intent.TIMED_OUT, deploymentEvent.getValue());
+
+                if (position >= 0)
+                {
+                    actor.done();
+                }
+                else
+                {
+                    actor.yield();
+                }
+            });
+
         }
     }
 }

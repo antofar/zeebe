@@ -20,17 +20,16 @@ package io.zeebe.broker.system.deployment.processor;
 import org.agrona.DirectBuffer;
 import org.agrona.collections.IntArrayList;
 
+import io.zeebe.broker.logstreams.processor.TypedEventStreamProcessorBuilder;
 import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.broker.logstreams.processor.TypedRecordProcessor;
-import io.zeebe.broker.logstreams.processor.TypedEventStreamProcessorBuilder;
 import io.zeebe.broker.system.deployment.data.TopicPartitions;
 import io.zeebe.broker.system.deployment.data.TopicPartitions.TopicPartition;
 import io.zeebe.broker.system.deployment.data.TopicPartitions.TopicPartitionIterator;
 import io.zeebe.broker.system.log.PartitionEvent;
-import io.zeebe.broker.system.log.PartitionState;
 import io.zeebe.broker.system.log.TopicEvent;
-import io.zeebe.broker.system.log.TopicState;
-import io.zeebe.protocol.clientapi.EventType;
+import io.zeebe.protocol.clientapi.Intent;
+import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.util.IntObjectBiConsumer;
 import io.zeebe.util.buffer.BufferUtil;
 
@@ -55,8 +54,8 @@ public class PartitionCollector
     public void registerWith(TypedEventStreamProcessorBuilder builder)
     {
         builder
-            .onEvent(EventType.PARTITION_EVENT, PartitionState.CREATED, new PartitionCreatedProcessor())
-            .onEvent(EventType.TOPIC_EVENT, TopicState.CREATED, new TopicCreatedProcessor())
+            .onEvent(ValueType.PARTITION, Intent.CREATED, new PartitionCreatedProcessor())
+            .onEvent(ValueType.TOPIC, Intent.CREATED, new TopicCreatedProcessor())
             .withStateResource(partitions.getRawMap());
     }
 
@@ -70,7 +69,7 @@ public class PartitionCollector
         private final IntArrayList partitionIds = new IntArrayList();
 
         @Override
-        public void processEvent(TypedRecord<TopicEvent> event)
+        public void processRecord(TypedRecord<TopicEvent> event)
         {
             partitionIds.clear();
 
@@ -104,12 +103,6 @@ public class PartitionCollector
 
     protected class PartitionCreatedProcessor implements TypedRecordProcessor<PartitionEvent>
     {
-        @Override
-        public void processEvent(TypedRecord<PartitionEvent> event)
-        {
-            // just add the created partition to the index
-        }
-
         @Override
         public void updateState(TypedRecord<PartitionEvent> event)
         {

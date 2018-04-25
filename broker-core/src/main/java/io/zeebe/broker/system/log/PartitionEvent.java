@@ -24,7 +24,6 @@ import org.agrona.DirectBuffer;
 
 public class PartitionEvent extends UnpackedObject
 {
-    protected final EnumProperty<PartitionState> state = new EnumProperty<>("state", PartitionState.class);
     protected final StringProperty topicName = new StringProperty("topicName");
     protected final IntegerProperty partitionId = new IntegerProperty("partitionId");
     protected final IntegerProperty replicationFactor = new IntegerProperty("replicationFactor");
@@ -37,22 +36,11 @@ public class PartitionEvent extends UnpackedObject
     public PartitionEvent()
     {
         this
-            .declareProperty(state)
             .declareProperty(partitionId)
             .declareProperty(replicationFactor)
             .declareProperty(topicName)
             .declareProperty(creationTimeout)
             .declareProperty(creator);
-    }
-
-    public void setState(PartitionState state)
-    {
-        this.state.setValue(state);
-    }
-
-    public PartitionState getState()
-    {
-        return state.getValue();
     }
 
     public void setTopicName(DirectBuffer buffer)

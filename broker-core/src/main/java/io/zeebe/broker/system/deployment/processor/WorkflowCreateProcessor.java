@@ -54,7 +54,7 @@ public class WorkflowCreateProcessor implements TypedRecordProcessor<WorkflowEve
     }
 
     @Override
-    public void processEvent(TypedRecord<WorkflowEvent> event)
+    public void processRecord(TypedRecord<WorkflowEvent> event)
     {
         partitionIds.clear();
 

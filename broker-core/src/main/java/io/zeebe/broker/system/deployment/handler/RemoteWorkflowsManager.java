@@ -22,26 +22,39 @@ import java.util.Map;
 import java.util.function.IntConsumer;
 import java.util.function.Predicate;
 
+import org.agrona.DirectBuffer;
+import org.agrona.collections.IntArrayList;
+import org.slf4j.Logger;
+
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.base.topology.Topology.NodeInfo;
 import io.zeebe.broker.clustering.base.topology.TopologyManager;
 import io.zeebe.broker.logstreams.processor.StreamProcessorLifecycleAware;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
+import io.zeebe.broker.logstreams.processor.TypedStreamEnvironment;
 import io.zeebe.broker.logstreams.processor.TypedStreamProcessor;
+import io.zeebe.broker.logstreams.processor.TypedStreamReader;
+import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
 import io.zeebe.broker.system.deployment.data.PendingDeployments;
 import io.zeebe.broker.system.deployment.data.PendingDeployments.PendingDeployment;
 import io.zeebe.broker.system.deployment.data.PendingWorkflows;
 import io.zeebe.broker.system.deployment.data.PendingWorkflows.PendingWorkflow;
 import io.zeebe.broker.system.deployment.data.PendingWorkflows.PendingWorkflowIterator;
-import io.zeebe.broker.system.deployment.message.*;
-import io.zeebe.broker.workflow.data.DeploymentState;
+import io.zeebe.broker.system.deployment.message.CreateWorkflowRequest;
+import io.zeebe.broker.system.deployment.message.CreateWorkflowResponse;
+import io.zeebe.broker.system.deployment.message.DeleteWorkflowMessage;
+import io.zeebe.broker.workflow.data.DeploymentEvent;
 import io.zeebe.broker.workflow.data.WorkflowEvent;
-import io.zeebe.transport.*;
+import io.zeebe.protocol.clientapi.Intent;
+import io.zeebe.transport.ClientOutput;
+import io.zeebe.transport.ClientResponse;
+import io.zeebe.transport.ClientTransport;
+import io.zeebe.transport.RemoteAddress;
+import io.zeebe.transport.SocketAddress;
+import io.zeebe.transport.TransportMessage;
 import io.zeebe.util.buffer.BufferWriter;
 import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.future.ActorFuture;
-import org.agrona.DirectBuffer;
-import org.agrona.collections.IntArrayList;
-import org.slf4j.Logger;
 
 public class RemoteWorkflowsManager implements StreamProcessorLifecycleAware
 {
@@ -55,24 +68,26 @@ public class RemoteWorkflowsManager implements StreamProcessorLifecycleAware
     private final ClientTransport managementClient;
     private final ClientOutput output;
 
-    private final DeploymentEventWriter writer;
+    private final TypedStreamEnvironment environment;
     private final PendingDeployments pendingDeployments;
     private final PendingWorkflows pendingWorkflows;
 
+    private TypedStreamReader reader;
+    private TypedStreamWriter writer;
     private ActorControl actor;
 
     public RemoteWorkflowsManager(
             PendingDeployments pendingDeployments,
             PendingWorkflows pendingWorkflows,
             TopologyManager topologyManager,
-            DeploymentEventWriter writer,
+            TypedStreamEnvironment environment,
             ClientTransport managementClient)
     {
         this.pendingDeployments = pendingDeployments;
         this.pendingWorkflows = pendingWorkflows;
         this.topologyManager = topologyManager;
         this.managementClient = managementClient;
-        this.writer = writer;
+        this.environment = environment;
         this.output = managementClient.getOutput();
     }
 
@@ -80,6 +95,8 @@ public class RemoteWorkflowsManager implements StreamProcessorLifecycleAware
     public void onOpen(TypedStreamProcessor streamProcessor)
     {
         this.actor = streamProcessor.getActor();
+        this.reader = environment.buildStreamReader();
+        this.writer = environment.buildStreamWriter();
     }
 
     public boolean distributeWorkflow(
@@ -194,7 +211,21 @@ public class RemoteWorkflowsManager implements StreamProcessorLifecycleAware
             if (isDeploymentDistributed(deploymentKey))
             {
                 final PendingDeployment pendingDeployment = pendingDeployments.get(deploymentKey);
-                writer.writeDeploymentEvent(pendingDeployment.getDeploymentEventPosition(), DeploymentState.DISTRIBUTED);
+                final TypedRecord<DeploymentEvent> event = reader.readValue(pendingDeployment.getDeploymentEventPosition(), DeploymentEvent.class);
+
+                actor.runUntilDone(() ->
+                {
+                    // TODO: copy request metadata?
+                    final long position = writer.writeEvent(event.getKey(), Intent.DISTRIBUTED, event.getValue());
+                    if (position >= 0)
+                    {
+                        actor.done();
+                    }
+                    else
+                    {
+                        actor.yield();
+                    }
+                });
             }
         }
         finally

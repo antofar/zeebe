@@ -52,6 +52,8 @@ public class TypedStreamProcessor implements StreamProcessor
     protected final EnumMap<ValueType, UnpackedObject> eventCache;
 
     protected final TypedEventImpl typedEvent = new TypedEventImpl();
+    private final TypedStreamEnvironment environment;
+
     protected DelegatingEventProcessor eventProcessorWrapper;
     protected ActorControl actor;
     private StreamProcessorContext streamProcessorContext;
@@ -61,7 +63,8 @@ public class TypedStreamProcessor implements StreamProcessor
             ServerOutput output,
             FlatEnumMap<TypedRecordProcessor> eventProcessors,
             List<StreamProcessorLifecycleAware> lifecycleListeners,
-            EnumMap<ValueType, Class<? extends UnpackedObject>> eventRegistry)
+            EnumMap<ValueType, Class<? extends UnpackedObject>> eventRegistry,
+            TypedStreamEnvironment environment)
     {
         this.snapshotSupport = snapshotSupport;
         this.output = output;
@@ -77,6 +80,7 @@ public class TypedStreamProcessor implements StreamProcessor
 
         eventRegistry.forEach((t, c) -> eventCache.put(t, ReflectUtil.newInstance(c)));
         this.eventRegistry = eventRegistry;
+        this.environment = environment;
     }
 
     @Override
@@ -111,7 +115,7 @@ public class TypedStreamProcessor implements StreamProcessor
         metadata.reset();
         event.readMetadata(metadata);
 
-        TypedRecordProcessor currentProcessor = eventProcessors.get(metadata.getValueType(), metadata.getRecordType(), metadata.getIntent());
+        final TypedRecordProcessor currentProcessor = eventProcessors.get(metadata.getValueType(), metadata.getRecordType(), metadata.getIntent());
 
         if (currentProcessor != null)
         {
@@ -203,5 +207,10 @@ public class TypedStreamProcessor implements StreamProcessor
     public StreamProcessorContext getStreamProcessorContext()
     {
         return streamProcessorContext;
+    }
+
+    public TypedStreamEnvironment getEnvironment()
+    {
+        return environment;
     }
 }

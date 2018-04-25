@@ -17,22 +17,26 @@
  */
 package io.zeebe.broker.system.deployment.processor;
 
-import static io.zeebe.broker.workflow.data.DeploymentState.REJECT;
-
-import java.util.function.Consumer;
+import org.agrona.collections.LongArrayList;
+import org.slf4j.Logger;
 
 import io.zeebe.broker.Loggers;
-import io.zeebe.broker.logstreams.processor.*;
+import io.zeebe.broker.logstreams.processor.TypedBatchWriter;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
+import io.zeebe.broker.logstreams.processor.TypedRecordProcessor;
+import io.zeebe.broker.logstreams.processor.TypedResponseWriter;
+import io.zeebe.broker.logstreams.processor.TypedStreamProcessor;
+import io.zeebe.broker.logstreams.processor.TypedStreamReader;
+import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
 import io.zeebe.broker.system.deployment.data.PendingDeployments;
 import io.zeebe.broker.system.deployment.data.PendingDeployments.PendingDeployment;
 import io.zeebe.broker.system.deployment.data.PendingWorkflows;
 import io.zeebe.broker.system.deployment.data.PendingWorkflows.PendingWorkflow;
 import io.zeebe.broker.system.deployment.data.PendingWorkflows.PendingWorkflowIterator;
 import io.zeebe.broker.system.deployment.handler.DeploymentTimer;
-import io.zeebe.broker.workflow.data.*;
-import io.zeebe.protocol.impl.RecordMetadata;
-import org.agrona.collections.LongArrayList;
-import org.slf4j.Logger;
+import io.zeebe.broker.workflow.data.DeploymentEvent;
+import io.zeebe.broker.workflow.data.WorkflowEvent;
+import io.zeebe.protocol.clientapi.Intent;
 
 public class DeploymentTimedOutProcessor implements TypedRecordProcessor<DeploymentEvent>
 {
@@ -40,39 +44,38 @@ public class DeploymentTimedOutProcessor implements TypedRecordProcessor<Deploym
 
     private final PendingDeployments pendingDeployments;
     private final PendingWorkflows pendingWorkflows;
-    private final TypedStreamReader reader;
     private final DeploymentTimer timer;
+    private TypedStreamReader reader;
 
     private final LongArrayList workflowKeys = new LongArrayList();
+
+    private boolean deploymentRejected;
 
     public DeploymentTimedOutProcessor(
             PendingDeployments pendingDeployments,
             PendingWorkflows pendingWorkflows,
-            DeploymentTimer timer,
-            TypedStreamReader reader)
+            DeploymentTimer timer)
     {
         this.pendingDeployments = pendingDeployments;
         this.pendingWorkflows = pendingWorkflows;
         this.timer = timer;
-        this.reader = reader;
     }
 
     @Override
-    public void processEvent(TypedRecord<DeploymentEvent> event)
+    public void onOpen(TypedStreamProcessor streamProcessor)
+    {
+        this.reader = streamProcessor.getEnvironment().buildStreamReader();
+    }
+
+    @Override
+    public void processRecord(TypedRecord<DeploymentEvent> event)
     {
         final PendingDeployment pendingDeployment = pendingDeployments.get(event.getKey());
 
-        if (pendingDeployment != null && !pendingDeployment.isResolved())
+        deploymentRejected = pendingDeployment != null && !pendingDeployment.isResolved(); // could be distributed in the meantime
+
+        if (deploymentRejected)
         {
-            /*
-             * TODO: braucht man REJECT überhaupt im Lifecycle noch? oder kann man Workflow DELETE sofort schreiben,
-             *   wenn man TIMED_OUT sieht und das valide ist? Würde ungerne die REJECTION-Idee hier brechen;
-             *   oder geht es hier eigentlich um Fehlschlag, sodass FAILED der richtige Name wäre?
-             *   oder sollte man dem User TIMED_OUT schon schicken?
-             */
-
-            event.getValue().setState(REJECT);
-
             workflowKeys.clear();
             collectWorkflowKeysForDeployment(event.getKey());
 
@@ -107,20 +110,20 @@ public class DeploymentTimedOutProcessor implements TypedRecordProcessor<Deploym
     @Override
     public long writeRecord(TypedRecord<DeploymentEvent> event, TypedStreamWriter writer)
     {
-        if (event.getValue().getState() == REJECT)
+        if (deploymentRejected)
         {
             final TypedBatchWriter batch = writer.newBatch();
 
             workflowKeys.forEachOrderedLong(workflowKey ->
             {
                 final WorkflowEvent workflowEvent = reader.readValue(workflowKey, WorkflowEvent.class).getValue();
-                workflowEvent.setState(WorkflowState.DELETE);
-
-                batch.addFollowUpEvent(workflowKey, workflowEvent);
+                batch.addEvent(workflowKey, Intent.DELETE, workflowEvent);
             });
 
             // the processor of this event sends the response
-            batch.addFollowUpEvent(event.getKey(), event.getValue(), copyRequestMetadata(event));
+            final TypedRecord<DeploymentEvent> deployCommand = getDeployCommand(event.getKey());
+
+            batch.addRejection(deployCommand);
 
             return batch.write();
         }
@@ -130,20 +133,24 @@ public class DeploymentTimedOutProcessor implements TypedRecordProcessor<Deploym
         }
     }
 
-    private Consumer<RecordMetadata> copyRequestMetadata(TypedRecord<DeploymentEvent> event)
+    private TypedRecord<DeploymentEvent> getDeployCommand(long deploymentKey)
     {
-        final RecordMetadata metadata = event.getMetadata();
-        return m -> m
-                .requestId(metadata.getRequestId())
-                .requestStreamId(metadata.getRequestStreamId());
+        final long deploymentCommandPosition = deploymentKey;
+        return reader.readValue(deploymentCommandPosition, DeploymentEvent.class);
+
+    }
+
+    @Override
+    public boolean executeSideEffects(TypedRecord<DeploymentEvent> record, TypedResponseWriter responseWriter)
+    {
+        final TypedRecord<DeploymentEvent> deployCommand = getDeployCommand(record.getKey());
+        return responseWriter.writeRejection(deployCommand);
     }
 
     @Override
     public void updateState(TypedRecord<DeploymentEvent> event)
     {
-        final DeploymentEvent deploymentEvent = event.getValue();
-
-        if (deploymentEvent.getState() == REJECT)
+        if (deploymentRejected)
         {
             final long deploymentKey = event.getKey();
 

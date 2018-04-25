@@ -23,6 +23,7 @@ import io.zeebe.broker.logstreams.processor.TypedRecordProcessor;
 import io.zeebe.broker.logstreams.processor.TypedResponseWriter;
 import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
 import io.zeebe.broker.system.log.PendingPartitionsIndex.PendingPartition;
+import io.zeebe.protocol.clientapi.Intent;
 import io.zeebe.transport.SocketAddress;
 
 public class ExpirePartitionCreationProcessor implements TypedRecordProcessor<PartitionEvent>
@@ -33,6 +34,8 @@ public class ExpirePartitionCreationProcessor implements TypedRecordProcessor<Pa
 
     protected final PartitionEvent newEvent = new PartitionEvent();
 
+    private boolean success;
+
     public ExpirePartitionCreationProcessor(PendingPartitionsIndex partitions, PartitionIdGenerator idGenerator, PartitionCreatorSelectionStrategy creatorStrategy)
     {
         this.partitions = partitions;
@@ -41,20 +44,13 @@ public class ExpirePartitionCreationProcessor implements TypedRecordProcessor<Pa
     }
 
     @Override
-    public void processEvent(TypedRecord<PartitionEvent> event)
+    public void processRecord(TypedRecord<PartitionEvent> event)
     {
         final PartitionEvent value = event.getValue();
 
         final PendingPartition partition = partitions.get(value.getPartitionId());
 
-        if (partition != null)
-        {
-            value.setState(PartitionState.CREATE_EXPIRED);
-        }
-        else
-        {
-            value.setState(PartitionState.CREATE_EXPIRE_REJECTED);
-        }
+        this.success = partition != null;
     }
 
     @Override
@@ -67,11 +63,11 @@ public class ExpirePartitionCreationProcessor implements TypedRecordProcessor<Pa
     public long writeRecord(TypedRecord<PartitionEvent> event, TypedStreamWriter writer)
     {
         final PartitionEvent value = event.getValue();
-        final TypedBatchWriter batchWriter = writer.newBatch()
-            .addFollowUpEvent(event.getKey(), value);
 
-        if (value.getState() == PartitionState.CREATE_EXPIRED)
+        if (success)
         {
+            final TypedBatchWriter batchWriter = writer.newBatch().addEvent(event.getKey(), Intent.TIMED_OUT, value);
+
             // create a new partition
             final SocketAddress nextCreator = creatorStrategy.selectBrokerForNewPartition();
             if (nextCreator == null)
@@ -80,16 +76,19 @@ public class ExpirePartitionCreationProcessor implements TypedRecordProcessor<Pa
             }
 
             newEvent.reset();
-            newEvent.setState(PartitionState.CREATE);
             newEvent.setTopicName(value.getTopicName());
             newEvent.setParitionId(idGenerator.currentId());
             newEvent.setReplicationFactor(value.getReplicationFactor());
             newEvent.setCreator(nextCreator.getHostBuffer(), nextCreator.port());
 
-            batchWriter.addNewEvent(newEvent);
-        }
+            batchWriter.addEvent(Intent.CREATE, newEvent);
 
-        return batchWriter.write();
+            return batchWriter.write();
+        }
+        else
+        {
+            return writer.writeRejection(event);
+        }
     }
 
     @Override

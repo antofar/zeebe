@@ -19,9 +19,11 @@ package io.zeebe.broker.system.log;
 
 import io.zeebe.broker.logstreams.processor.*;
 import io.zeebe.broker.system.log.PendingPartitionsIndex.PendingPartition;
+import io.zeebe.protocol.clientapi.Intent;
 
 public class CompletePartitionProcessor implements TypedRecordProcessor<PartitionEvent>
 {
+    private boolean success;
 
     protected final PendingPartitionsIndex partitions;
 
@@ -31,19 +33,11 @@ public class CompletePartitionProcessor implements TypedRecordProcessor<Partitio
     }
 
     @Override
-    public void processEvent(TypedRecord<PartitionEvent> event)
+    public void processRecord(TypedRecord<PartitionEvent> event)
     {
         final PartitionEvent value = event.getValue();
         final PendingPartition partition = partitions.get(value.getPartitionId());
-
-        if (partition != null)
-        {
-            value.setState(PartitionState.CREATED);
-        }
-        else
-        {
-            value.setState(PartitionState.CREATE_COMPLETE_REJECTED);
-        }
+        success = partition != null;
     }
 
     @Override
@@ -55,7 +49,14 @@ public class CompletePartitionProcessor implements TypedRecordProcessor<Partitio
     @Override
     public long writeRecord(TypedRecord<PartitionEvent> event, TypedStreamWriter writer)
     {
-        return writer.writeFollowupEvent(event.getKey(), event.getValue());
+        if (success)
+        {
+            return writer.writeEvent(event.getKey(), Intent.CREATED, event.getValue());
+        }
+        else
+        {
+            return writer.writeRejection(event);
+        }
     }
 
     @Override
@@ -63,7 +64,7 @@ public class CompletePartitionProcessor implements TypedRecordProcessor<Partitio
     {
         final PartitionEvent value = event.getValue();
 
-        if (value.getState() == PartitionState.CREATED)
+        if (success)
         {
             partitions.removePartitionKey(value.getPartitionId());
         }

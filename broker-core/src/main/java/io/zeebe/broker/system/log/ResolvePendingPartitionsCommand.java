@@ -20,20 +20,21 @@ package io.zeebe.broker.system.log;
 import java.time.Duration;
 import java.util.Iterator;
 
-import io.zeebe.broker.Loggers;
-import io.zeebe.broker.clustering.base.topology.*;
+import io.zeebe.broker.clustering.base.topology.Topology;
 import io.zeebe.broker.clustering.base.topology.Topology.NodeInfo;
 import io.zeebe.broker.clustering.base.topology.Topology.PartitionInfo;
-import io.zeebe.broker.logstreams.processor.*;
+import io.zeebe.broker.clustering.base.topology.TopologyPartitionListener;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
+import io.zeebe.broker.logstreams.processor.TypedStreamReader;
+import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
 import io.zeebe.broker.system.log.PendingPartitionsIndex.PendingPartition;
+import io.zeebe.protocol.clientapi.Intent;
 import io.zeebe.util.CloseableSilently;
 import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.clock.ActorClock;
-import org.slf4j.Logger;
 
 public class ResolvePendingPartitionsCommand implements CloseableSilently, TopologyPartitionListener
 {
-    private static final Logger LOG = Loggers.CLUSTERING_LOGGER;
 
     protected final PendingPartitionsIndex partitions;
     private ActorControl actorControl;
@@ -79,11 +80,9 @@ public class ResolvePendingPartitionsCommand implements CloseableSilently, Topol
             {
                 final TypedRecord<PartitionEvent> event = reader.readValue(partition.getPosition(), PartitionEvent.class);
 
-                event.getValue().setState(PartitionState.CREATE_EXPIRE);
-
                 // it is ok if writing fails,
                 // we will then try it again with the next command execution (there are no other side effects of expiration)
-                writer.writeFollowupEvent(event.getKey(), event.getValue());
+                writer.writeEvent(event.getKey(), Intent.TIME_OUT, event.getValue());
             }
         }
     }
@@ -103,9 +102,7 @@ public class ResolvePendingPartitionsCommand implements CloseableSilently, Topol
                 {
                     final TypedRecord<PartitionEvent> event = reader.readValue(pendingPartition.getPosition(), PartitionEvent.class);
 
-                    event.getValue().setState(PartitionState.CREATE_COMPLETE);
-
-                    if (writer.writeFollowupEvent(event.getKey(), event.getValue()) >= 0)
+                    if (writer.writeEvent(event.getKey(), Intent.CREATE_COMPLETE, event.getValue()) >= 0)
                     {
                         actorControl.done();
                     }

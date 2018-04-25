@@ -26,6 +26,7 @@ import io.zeebe.broker.logstreams.processor.TypedResponseWriter;
 import io.zeebe.broker.logstreams.processor.TypedStreamProcessor;
 import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
 import io.zeebe.protocol.Protocol;
+import io.zeebe.protocol.clientapi.Intent;
 import io.zeebe.transport.SocketAddress;
 
 public class CreateTopicProcessor implements TypedRecordProcessor<TopicEvent>
@@ -34,6 +35,8 @@ public class CreateTopicProcessor implements TypedRecordProcessor<TopicEvent>
     protected final PartitionIdGenerator idGenerator;
     protected final PartitionEvent partitionEvent = new PartitionEvent();
     protected final PartitionCreatorSelectionStrategy creatorStrategy;
+
+    private boolean rejected;
 
     public CreateTopicProcessor(
             TopicsIndex topics,
@@ -52,25 +55,22 @@ public class CreateTopicProcessor implements TypedRecordProcessor<TopicEvent>
     }
 
     @Override
-    public void processEvent(TypedRecord<TopicEvent> event)
+    public void processRecord(TypedRecord<TopicEvent> event)
     {
         final TopicEvent value = event.getValue();
 
         final DirectBuffer nameBuffer = value.getName();
         final boolean topicExists = topics.moveTo(nameBuffer);
 
-        if (topicExists || value.getPartitions() <= 0)
-        {
-            value.setState(TopicState.CREATE_REJECTED);
-        }
+        rejected = topicExists || value.getPartitions() <= 0;
     }
 
     @Override
     public boolean executeSideEffects(TypedRecord<TopicEvent> event, TypedResponseWriter responseWriter)
     {
-        if (event.getValue().getState() == TopicState.CREATE_REJECTED)
+        if (rejected)
         {
-            return responseWriter.write(event);
+            return responseWriter.writeRejection(event);
         }
         else
         {
@@ -82,9 +82,9 @@ public class CreateTopicProcessor implements TypedRecordProcessor<TopicEvent>
     public long writeRecord(TypedRecord<TopicEvent> event, TypedStreamWriter writer)
     {
         final TopicEvent value = event.getValue();
-        if (value.getState() == TopicState.CREATE_REJECTED)
+        if (rejected)
         {
-            return writer.writeFollowupEvent(event.getKey(), event.getValue());
+            return writer.writeRejection(event);
         }
         else
         {
@@ -102,13 +102,12 @@ public class CreateTopicProcessor implements TypedRecordProcessor<TopicEvent>
                 }
 
                 partitionEvent.reset();
-                partitionEvent.setState(PartitionState.CREATE);
                 partitionEvent.setTopicName(value.getName());
                 partitionEvent.setParitionId(idGenerator.currentId(i));
                 partitionEvent.setReplicationFactor(value.getReplicationFactor());
                 partitionEvent.setCreator(nextCreator.getHostBuffer(), nextCreator.port());
 
-                batchWriter.addNewEvent(partitionEvent);
+                batchWriter.addCommand(Intent.CREATE, partitionEvent);
             }
 
             return batchWriter.write();
@@ -119,7 +118,8 @@ public class CreateTopicProcessor implements TypedRecordProcessor<TopicEvent>
     public void updateState(TypedRecord<TopicEvent> event)
     {
         final TopicEvent value = event.getValue();
-        if (value.getState() != TopicState.CREATE_REJECTED)
+
+        if (!rejected)
         {
             topics.put(value.getName(), value.getPartitions(), event.getPosition());
             idGenerator.moveToNextIds(value.getPartitions());

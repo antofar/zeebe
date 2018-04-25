@@ -17,21 +17,23 @@
  */
 package io.zeebe.broker.system.deployment.handler;
 
+import org.agrona.DirectBuffer;
+import org.agrona.collections.Int2ObjectHashMap;
+
 import io.zeebe.broker.clustering.base.partitions.Partition;
 import io.zeebe.broker.system.deployment.message.CreateWorkflowRequest;
 import io.zeebe.broker.system.deployment.message.DeleteWorkflowMessage;
 import io.zeebe.broker.workflow.data.WorkflowEvent;
-import io.zeebe.broker.workflow.data.WorkflowState;
 import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.logstreams.log.LogStreamWriter;
 import io.zeebe.logstreams.log.LogStreamWriterImpl;
 import io.zeebe.protocol.Protocol;
-import io.zeebe.protocol.clientapi.EventType;
+import io.zeebe.protocol.clientapi.Intent;
+import io.zeebe.protocol.clientapi.RecordType;
+import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.transport.RemoteAddress;
 import io.zeebe.util.DeferredCommandContext;
-import org.agrona.DirectBuffer;
-import org.agrona.collections.Int2ObjectHashMap;
 
 public class WorkflowRequestMessageHandler
 {
@@ -39,7 +41,7 @@ public class WorkflowRequestMessageHandler
     private final DeleteWorkflowMessage deleteMessage = new DeleteWorkflowMessage();
 
     private final WorkflowEvent workflowEvent = new WorkflowEvent();
-    private final RecordMetadata eventMetadata = new RecordMetadata();
+    private final RecordMetadata recordMetadata = new RecordMetadata();
 
     private final DeferredCommandContext deferredContext = new DeferredCommandContext();
 
@@ -54,11 +56,13 @@ public class WorkflowRequestMessageHandler
             RemoteAddress remoteAddress,
             long requestId)
     {
-        eventMetadata.reset()
+        recordMetadata.reset()
             .requestId(requestId)
             .requestStreamId(remoteAddress.getStreamId())
             .protocolVersion(Protocol.PROTOCOL_VERSION)
-            .valueType(EventType.WORKFLOW_EVENT);
+            .recordType(RecordType.COMMAND)
+            .intent(Intent.CREATE)
+            .valueType(ValueType.WORKFLOW);
 
         createRequest.wrap(buffer, offset, length);
 
@@ -67,7 +71,6 @@ public class WorkflowRequestMessageHandler
         {
             workflowEvent.reset();
             workflowEvent
-                .setState(WorkflowState.CREATE)
                 .setDeploymentKey(createRequest.getDeploymentKey())
                 .setBpmnProcessId(createRequest.getBpmnProcessId())
                 .setVersion(createRequest.getVersion())
@@ -86,9 +89,11 @@ public class WorkflowRequestMessageHandler
             int offset,
             int length)
     {
-        eventMetadata.reset()
+        recordMetadata.reset()
             .protocolVersion(Protocol.PROTOCOL_VERSION)
-            .valueType(EventType.WORKFLOW_EVENT);
+            .recordType(RecordType.COMMAND)
+            .intent(Intent.DELETE)
+            .valueType(ValueType.WORKFLOW);
 
         deleteMessage.wrap(buffer, offset, length);
 
@@ -97,7 +102,6 @@ public class WorkflowRequestMessageHandler
         {
             workflowEvent.reset();
             workflowEvent
-                .setState(WorkflowState.DELETE)
                 .setDeploymentKey(deleteMessage.getDeploymentKey())
                 .setBpmnProcessId(deleteMessage.getBpmnProcessId())
                 .setVersion(deleteMessage.getVersion())
@@ -125,7 +129,7 @@ public class WorkflowRequestMessageHandler
 
         final long eventPosition = logStreamWriter
                 .key(key)
-                .metadataWriter(eventMetadata)
+                .metadataWriter(recordMetadata)
                 .valueWriter(workflowEvent)
                 .tryWrite();
 

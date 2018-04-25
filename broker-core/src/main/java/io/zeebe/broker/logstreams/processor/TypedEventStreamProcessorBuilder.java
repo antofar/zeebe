@@ -108,11 +108,13 @@ public class TypedEventStreamProcessorBuilder
             snapshotSupport = new NoopSnapshotSupport();
         }
 
+        // TODO: vll kann man hier env.getOutput etc. wegmachen
         return new TypedStreamProcessor(
                 snapshotSupport,
                 environment.getOutput(),
                 eventProcessors,
                 lifecycleListeners,
-                environment.getEventRegistry());
+                environment.getEventRegistry(),
+                environment);
     }
 }

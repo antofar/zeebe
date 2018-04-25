@@ -22,12 +22,25 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import io.zeebe.broker.clustering.base.partitions.Partition;
 import io.zeebe.broker.clustering.base.topology.TopologyManager;
-import io.zeebe.broker.logstreams.processor.*;
+import io.zeebe.broker.logstreams.processor.StreamProcessorIds;
+import io.zeebe.broker.logstreams.processor.StreamProcessorLifecycleAware;
+import io.zeebe.broker.logstreams.processor.StreamProcessorServiceFactory;
+import io.zeebe.broker.logstreams.processor.TypedEventStreamProcessorBuilder;
+import io.zeebe.broker.logstreams.processor.TypedStreamEnvironment;
+import io.zeebe.broker.logstreams.processor.TypedStreamProcessor;
 import io.zeebe.broker.system.SystemConfiguration;
 import io.zeebe.broker.system.deployment.processor.PartitionCollector;
-import io.zeebe.protocol.clientapi.EventType;
-import io.zeebe.servicecontainer.*;
-import io.zeebe.transport.*;
+import io.zeebe.protocol.clientapi.Intent;
+import io.zeebe.protocol.clientapi.ValueType;
+import io.zeebe.servicecontainer.Injector;
+import io.zeebe.servicecontainer.Service;
+import io.zeebe.servicecontainer.ServiceGroupReference;
+import io.zeebe.servicecontainer.ServiceName;
+import io.zeebe.servicecontainer.ServiceStartContext;
+import io.zeebe.servicecontainer.ServiceStopContext;
+import io.zeebe.transport.ClientTransport;
+import io.zeebe.transport.ServerOutput;
+import io.zeebe.transport.ServerTransport;
 import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
 
@@ -129,11 +142,11 @@ public class SystemPartitionManager implements Service<SystemPartitionManager>
         final ResolvePendingPartitionsCommand partitionsCommand = new ResolvePendingPartitionsCommand(partitionsIndex, streamEnvironment.buildStreamReader(), streamEnvironment.buildStreamWriter());
 
         return streamEnvironment.newStreamProcessor()
-            .onEvent(EventType.TOPIC_EVENT, TopicState.CREATE, new CreateTopicProcessor(topicsIndex, idGenerator, nodeSelectionStrategy))
-            .onEvent(EventType.PARTITION_EVENT, PartitionState.CREATE, new CreatePartitionProcessor(clientTransport, partitionsIndex, creationExpiration))
-            .onEvent(EventType.PARTITION_EVENT, PartitionState.CREATE_COMPLETE, new CompletePartitionProcessor(partitionsIndex))
-            .onEvent(EventType.PARTITION_EVENT, PartitionState.CREATED, new PartitionCreatedProcessor(topicsIndex, streamEnvironment.buildStreamReader()))
-            .onEvent(EventType.PARTITION_EVENT, PartitionState.CREATE_EXPIRE, new ExpirePartitionCreationProcessor(partitionsIndex, idGenerator, nodeSelectionStrategy))
+            .onCommand(ValueType.TOPIC, Intent.CREATE, new CreateTopicProcessor(topicsIndex, idGenerator, nodeSelectionStrategy))
+            .onCommand(ValueType.PARTITION, Intent.CREATE, new CreatePartitionProcessor(clientTransport, partitionsIndex, creationExpiration))
+            .onCommand(ValueType.PARTITION, Intent.CREATE_COMPLETE, new CompletePartitionProcessor(partitionsIndex))
+            .onEvent(ValueType.PARTITION, Intent.CREATED, new PartitionCreatedProcessor(topicsIndex, streamEnvironment.buildStreamReader()))
+            .onCommand(ValueType.PARTITION, Intent.TIME_OUT, new ExpirePartitionCreationProcessor(partitionsIndex, idGenerator, nodeSelectionStrategy))
             .withStateResource(topicsIndex.getRawMap())
             .withStateResource(partitionsIndex.getRawMap())
             .withStateResource(idGenerator)
