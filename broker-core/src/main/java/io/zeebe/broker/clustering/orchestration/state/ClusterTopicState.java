@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class ClusterTopicState implements Service<ClusterTopicState>, StreamProcessorLifecycleAware
 {
@@ -118,5 +119,10 @@ public class ClusterTopicState implements Service<ClusterTopicState>, StreamProc
         return actor.call(() -> topicState);
     }
 
-
+    public ActorFuture<Map<DirectBuffer, TopicInfo>> getOnlyNotCreatedTopicsFromDesiredState()
+    {
+        return actor.call(() -> topicState.entrySet().stream()
+            .filter(entry -> entry.getValue().getPartitionIds().isEmpty())
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+    }
 }

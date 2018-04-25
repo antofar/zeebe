@@ -21,8 +21,8 @@ import java.util.*;
 public class TopicCreationReviserService extends Actor implements Service<Void>
 {
     private static final Logger LOG = Loggers.ORCHESTRATION_LOGGER;
-    public static final Duration TIMER_RATE = Duration.ofSeconds(1);
 
+    public static final Duration TIMER_RATE = Duration.ofSeconds(1);
 
     private final Injector<ClusterTopicState> stateInjector = new Injector<>();
     private final Injector<TopologyManager> topologyManagerInjector = new Injector<>();
@@ -54,7 +54,7 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
 
     private void checkCurrentState()
     {
-        final ActorFuture<Map<DirectBuffer, TopicInfo>> stateFuture = clusterTopicState.getDesiredState();
+        final ActorFuture<Map<DirectBuffer, TopicInfo>> stateFuture = clusterTopicState.getOnlyNotCreatedTopicsFromDesiredState();
 
         actor.runOnCompletion(stateFuture, (desiredState, getDesiredStateError) ->
         {
@@ -98,10 +98,12 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
                             }
                             else
                             {
+
                                //     partitionInfos.size() == desiredTopic.getPartitionCount()
                                 // TODO write topic CREATED
                                 LOG.debug("Enough partitions created. Current state equals to desired state. Writing Topic {} CREATED.",
                                     BufferUtil.bufferAsString(desiredTopic.getTopicName()));
+
                             }
                         }
                     }
