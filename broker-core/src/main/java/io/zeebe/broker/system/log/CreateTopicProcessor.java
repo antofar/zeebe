@@ -17,22 +17,14 @@
  */
 package io.zeebe.broker.system.log;
 
-import org.agrona.DirectBuffer;
-
-import io.zeebe.broker.logstreams.processor.TypedBatchWriter;
-import io.zeebe.broker.logstreams.processor.TypedEvent;
-import io.zeebe.broker.logstreams.processor.TypedEventProcessor;
-import io.zeebe.broker.logstreams.processor.TypedResponseWriter;
-import io.zeebe.broker.logstreams.processor.TypedStreamProcessor;
-import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
+import io.zeebe.broker.logstreams.processor.*;
 import io.zeebe.protocol.Protocol;
-import io.zeebe.transport.SocketAddress;
+import org.agrona.DirectBuffer;
 
 public class CreateTopicProcessor implements TypedEventProcessor<TopicEvent>
 {
     protected final TopicsIndex topics;
     protected final PartitionIdGenerator idGenerator;
-    protected final PartitionEvent partitionEvent = new PartitionEvent();
     protected final PartitionCreatorSelectionStrategy creatorStrategy;
 
     public CreateTopicProcessor(
@@ -81,38 +73,15 @@ public class CreateTopicProcessor implements TypedEventProcessor<TopicEvent>
     @Override
     public long writeEvent(TypedEvent<TopicEvent> event, TypedStreamWriter writer)
     {
+        long position = 0;
+
         final TopicEvent value = event.getValue();
         if (value.getState() == TopicState.CREATE_REJECTED)
         {
-            return writer.writeFollowupEvent(event.getKey(), event.getValue());
+            position = writer.writeFollowupEvent(event.getKey(), event.getValue());
         }
-        else
-        {
-            final TypedBatchWriter batchWriter = writer.newBatch();
 
-            for (int i = 0; i < value.getPartitions(); i++)
-            {
-                // in contrast to choosing the partition ID, choosing the creator
-                // does not have to be deterministic (e.g. when this method is invoked multiple times due to backpressure),
-                // so it is ok to choose the creator here and not in #processEvent
-                final SocketAddress nextCreator = creatorStrategy.selectBrokerForNewPartition();
-                if (nextCreator == null)
-                {
-                    return -1;
-                }
-
-                partitionEvent.reset();
-                partitionEvent.setState(PartitionState.CREATE);
-                partitionEvent.setTopicName(value.getName());
-                partitionEvent.setParitionId(idGenerator.currentId(i));
-                partitionEvent.setReplicationFactor(value.getReplicationFactor());
-                partitionEvent.setCreator(nextCreator.getHostBuffer(), nextCreator.port());
-
-                batchWriter.addNewEvent(partitionEvent);
-            }
-
-            return batchWriter.write();
-        }
+        return position;
     }
 
     @Override

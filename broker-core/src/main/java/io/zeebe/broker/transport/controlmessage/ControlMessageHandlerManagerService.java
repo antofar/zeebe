@@ -17,11 +17,13 @@
  */
 package io.zeebe.broker.transport.controlmessage;
 
+import java.util.Arrays;
+import java.util.List;
+
 import io.zeebe.broker.clustering.base.topology.RequestTopologyHandler;
 import io.zeebe.broker.clustering.base.topology.TopologyManager;
 import io.zeebe.broker.event.handler.RemoveTopicSubscriptionHandler;
 import io.zeebe.broker.event.processor.TopicSubscriptionService;
-import io.zeebe.broker.system.log.RequestPartitionsMessageHandler;
 import io.zeebe.broker.system.log.SystemPartitionManager;
 import io.zeebe.broker.task.TaskSubscriptionManager;
 import io.zeebe.dispatcher.Dispatcher;
@@ -32,9 +34,6 @@ import io.zeebe.servicecontainer.ServiceStopContext;
 import io.zeebe.transport.ServerOutput;
 import io.zeebe.transport.ServerTransport;
 import io.zeebe.util.sched.ActorScheduler;
-
-import java.util.Arrays;
-import java.util.List;
 
 public class ControlMessageHandlerManagerService implements Service<ControlMessageHandlerManager>
 {
@@ -73,9 +72,7 @@ public class ControlMessageHandlerManagerService implements Service<ControlMessa
             new IncreaseTaskSubscriptionCreditsHandler(output, taskSubscriptionManager),
             new RemoveTaskSubscriptionHandler(output, taskSubscriptionManager),
             new RemoveTopicSubscriptionHandler(output, topicSubscriptionService),
-            new RequestTopologyHandler(output, topologyManagerInjector.getValue()),
-            new RequestPartitionsMessageHandler(output, systemPartitionManager)
-            // TODO(menski): register topics requests handler
+            new RequestTopologyHandler(output, topologyManagerInjector.getValue())
         );
 
         service = new ControlMessageHandlerManager(

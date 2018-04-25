@@ -40,7 +40,6 @@ import io.zeebe.transport.RemoteAddress;
 import io.zeebe.transport.ServerMessageHandler;
 import io.zeebe.transport.ServerOutput;
 import io.zeebe.transport.ServerRequestHandler;
-import io.zeebe.util.buffer.BufferUtil;
 import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.collections.Int2ObjectHashMap;

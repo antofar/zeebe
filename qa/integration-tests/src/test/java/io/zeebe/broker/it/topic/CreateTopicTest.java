@@ -98,10 +98,7 @@ public class CreateTopicTest
         assertThat(topicEvent.getState()).isEqualTo("CREATED");
 
         waitUntil(() ->
-            clientRule.getClient().requestTopology().execute().getBrokers().stream()
-                      .flatMap(b -> b.getPartitions().stream())
-                      .map(BrokerPartitionState::getTopicName)
-                      .filter(n -> n.equals("foo")).count() >= 2
+            clientRule.getClient().topics().getTopics().execute().getTopics().size() >= 2
         );
 
         // when

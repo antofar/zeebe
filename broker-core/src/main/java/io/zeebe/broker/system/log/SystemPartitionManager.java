@@ -126,33 +126,11 @@ public class SystemPartitionManager implements Service<SystemPartitionManager>
     {
         final PartitionIdGenerator idGenerator = new PartitionIdGenerator();
 
-        final ResolvePendingPartitionsCommand partitionsCommand = new ResolvePendingPartitionsCommand(partitionsIndex, streamEnvironment.buildStreamReader(), streamEnvironment.buildStreamWriter());
-
         return streamEnvironment.newStreamProcessor()
             .onEvent(EventType.TOPIC_EVENT, TopicState.CREATE, new CreateTopicProcessor(topicsIndex, idGenerator, nodeSelectionStrategy))
-            .onEvent(EventType.PARTITION_EVENT, PartitionState.CREATE, new CreatePartitionProcessor(clientTransport, partitionsIndex, creationExpiration))
-            .onEvent(EventType.PARTITION_EVENT, PartitionState.CREATE_COMPLETE, new CompletePartitionProcessor(partitionsIndex))
-            .onEvent(EventType.PARTITION_EVENT, PartitionState.CREATED, new PartitionCreatedProcessor(topicsIndex, streamEnvironment.buildStreamReader()))
-            .onEvent(EventType.PARTITION_EVENT, PartitionState.CREATE_EXPIRE, new ExpirePartitionCreationProcessor(partitionsIndex, idGenerator, nodeSelectionStrategy))
             .withStateResource(topicsIndex.getRawMap())
             .withStateResource(partitionsIndex.getRawMap())
             .withStateResource(idGenerator)
-            .withListener(new StreamProcessorLifecycleAware()
-            {
-                @Override
-                public void onOpen(TypedStreamProcessor streamProcessor)
-                {
-                    partitionsCommand.init(streamProcessor.getActor());
-                    topologyManager.addTopologyPartitionListener(partitionsCommand);
-                }
-
-                @Override
-                public void onClose()
-                {
-                    topologyManager.removeTopologyPartitionListener(partitionsCommand);
-                    partitionsCommand.close();
-                }
-            })
             .build();
     }
 

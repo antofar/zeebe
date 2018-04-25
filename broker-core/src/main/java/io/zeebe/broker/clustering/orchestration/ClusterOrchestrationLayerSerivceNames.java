@@ -1,6 +1,7 @@
 package io.zeebe.broker.clustering.orchestration;
 
 import io.zeebe.broker.clustering.orchestration.state.ClusterTopicState;
+import io.zeebe.broker.system.log.RequestPartitionsMessageHandler;
 import io.zeebe.servicecontainer.ServiceName;
 
 public class ClusterOrchestrationLayerSerivceNames
@@ -12,5 +13,6 @@ public class ClusterOrchestrationLayerSerivceNames
     public static final ServiceName<ClusterTopicState> CLUSTER_TOPIC_STATE_SERVICE_NAME = ServiceName.newServiceName("cluster.orchestration.clusterTopicState", ClusterTopicState.class);
 
     public static final ServiceName<Void> TOPIC_CREATION_REVISER_SERVICE_NAME = ServiceName.newServiceName("cluster.orchestration.topic.reviser", Void.class);
+    public static final ServiceName<RequestPartitionsMessageHandler> REQUEST_PARTITIONS_MESSAGE_HANDLER_SERVICE_NAME = ServiceName.newServiceName("cluster.orchestration.requestsPartitionsMessageHandler", RequestPartitionsMessageHandler.class);
 
 }

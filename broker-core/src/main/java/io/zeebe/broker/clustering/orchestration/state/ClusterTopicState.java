@@ -119,10 +119,27 @@ public class ClusterTopicState implements Service<ClusterTopicState>, StreamProc
         return actor.call(() -> topicState);
     }
 
-    public ActorFuture<Map<DirectBuffer, TopicInfo>> getOnlyNotCreatedTopicsFromDesiredState()
+    public ActorFuture<Map<DirectBuffer, TopicInfo>> getPendingTopics()
     {
-        return actor.call(() -> topicState.entrySet().stream()
-            .filter(entry -> entry.getValue().getPartitionIds().isEmpty())
-            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+        return actor.call(this::collectPendingTopics);
+    }
+
+    public ActorFuture<Map<DirectBuffer, TopicInfo>> getCreatedTopics()
+    {
+        return actor.call(this::collectCreatedTopics);
+    }
+
+    private Map<DirectBuffer, TopicInfo> collectPendingTopics()
+    {
+        return topicState.entrySet().stream()
+                         .filter(entry -> entry.getValue().getPartitionIds().isEmpty())
+                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+
+    private Map<DirectBuffer, TopicInfo> collectCreatedTopics()
+    {
+        return topicState.entrySet().stream()
+                  .filter(entry -> !entry.getValue().getPartitionIds().isEmpty())
+                  .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 }

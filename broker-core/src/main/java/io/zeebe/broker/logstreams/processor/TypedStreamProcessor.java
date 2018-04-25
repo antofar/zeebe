@@ -22,7 +22,6 @@ import java.util.EnumMap;
 import java.util.List;
 
 import io.zeebe.broker.incident.data.IncidentEvent;
-import io.zeebe.broker.system.log.PartitionEvent;
 import io.zeebe.broker.system.log.TopicEvent;
 import io.zeebe.broker.task.data.TaskEvent;
 import io.zeebe.broker.workflow.data.DeploymentEvent;
@@ -153,10 +152,6 @@ public class TypedStreamProcessor implements StreamProcessor
         if (value instanceof TopicEvent)
         {
             return ((TopicEvent) value).getState();
-        }
-        else if (value instanceof PartitionEvent)
-        {
-            return ((PartitionEvent) value).getState();
         }
         else if (value instanceof DeploymentEvent)
         {

@@ -164,6 +164,8 @@ public class ClusterComponent implements Component
         final ClusterOrchestrationInstallService clusterOrchestrationInstallService = new ClusterOrchestrationInstallService();
 
         serviceContainer.createService(CLUSTER_ORCHESTRATION_INSTALL_SERVICE_NAME, clusterOrchestrationInstallService)
+                        .dependency(CONTROL_MESSAGE_HANDLER_MANAGER, clusterOrchestrationInstallService.getControlMessageHandlerManagerInjector())
+                        .dependency(serverTransport(CLIENT_API_SERVER_NAME), clusterOrchestrationInstallService.getTransportInjector())
                         .groupReference(LEADER_PARTITION_SYSTEM_GROUP_NAME, clusterOrchestrationInstallService.getSystemLeaderGroupReference())
                         .install();
     }

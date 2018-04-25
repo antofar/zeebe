@@ -19,7 +19,6 @@ package io.zeebe.broker.topic;
 
 import org.agrona.DirectBuffer;
 
-import io.zeebe.broker.system.log.PartitionEvent;
 import io.zeebe.broker.system.log.TopicEvent;
 import io.zeebe.broker.task.data.TaskEvent;
 import io.zeebe.broker.workflow.data.DeploymentEvent;
@@ -36,11 +35,6 @@ public class Events
     public static DeploymentEvent asDeploymentEvent(LoggedEvent event)
     {
         return readValueAs(event, DeploymentEvent.class);
-    }
-
-    public static PartitionEvent asPartitionEvent(LoggedEvent event)
-    {
-        return readValueAs(event, PartitionEvent.class);
     }
 
     public static TopicEvent asTopicEvent(LoggedEvent event)

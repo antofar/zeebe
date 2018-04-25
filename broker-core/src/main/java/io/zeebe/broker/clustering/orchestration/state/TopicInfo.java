@@ -81,8 +81,7 @@ public class TopicInfo
     @Override
     public String toString()
     {
-        return "TopicInfo{" + "topicName=" + topicName + ", partitionCount=" + partitionCount + ", replicationFactor=" + replicationFactor + ", partitionIds="
-            + partitionIds + '}';
+        return "TopicInfo{" + "topicName=" + topicName + ", partitionCount=" + partitionCount + ", replicationFactor=" + replicationFactor + ", partitionIds=" + partitionIds + '}';
     }
 
     public void update(final TopicInfo topicInfo)

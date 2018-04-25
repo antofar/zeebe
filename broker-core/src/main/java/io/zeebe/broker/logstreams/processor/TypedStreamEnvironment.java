@@ -20,7 +20,6 @@ package io.zeebe.broker.logstreams.processor;
 import java.util.EnumMap;
 
 import io.zeebe.broker.incident.data.IncidentEvent;
-import io.zeebe.broker.system.log.PartitionEvent;
 import io.zeebe.broker.system.log.TopicEvent;
 import io.zeebe.broker.task.data.TaskEvent;
 import io.zeebe.broker.workflow.data.DeploymentEvent;
@@ -39,7 +38,6 @@ public class TypedStreamEnvironment
     static
     {
         EVENT_REGISTRY.put(EventType.TOPIC_EVENT, TopicEvent.class);
-        EVENT_REGISTRY.put(EventType.PARTITION_EVENT, PartitionEvent.class);
         EVENT_REGISTRY.put(EventType.DEPLOYMENT_EVENT, DeploymentEvent.class);
         EVENT_REGISTRY.put(EventType.WORKFLOW_EVENT, WorkflowEvent.class);
         EVENT_REGISTRY.put(EventType.TASK_EVENT, TaskEvent.class);

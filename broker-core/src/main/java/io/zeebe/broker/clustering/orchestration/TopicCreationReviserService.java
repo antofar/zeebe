@@ -71,7 +71,7 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
 
     private void topicCreationRevising()
     {
-        final ActorFuture<Map<DirectBuffer, TopicInfo>> stateFuture = clusterTopicState.getOnlyNotCreatedTopicsFromDesiredState();
+        final ActorFuture<Map<DirectBuffer, TopicInfo>> stateFuture = clusterTopicState.getPendingTopics();
 
         actor.runOnCompletion(stateFuture, (desiredState, getDesiredStateError) ->
         {
@@ -98,7 +98,7 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
             }
             else
             {
-                Loggers.ORCHESTRATION_LOGGER.error("Error in reading topology.", readTopologyError);
+                LOG.error("Error in reading topology.", readTopologyError);
             }
         });
     }
@@ -149,8 +149,7 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
                 final TopicEvent topicEvent = readEvent.getValue();
                 partitionInfos.forEach(info -> topicEvent.getPartitionIds().add().setValue(info.getPartitionId()));
                 topicEvent.setState(TopicState.CREATED);
-                streamWriter.writeNewEvent(topicEvent);
-
+                streamWriter.writeFollowupEvent(readEvent.getKey(), topicEvent);
             }
         }
     }

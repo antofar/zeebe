@@ -26,8 +26,6 @@ import io.zeebe.broker.logstreams.processor.TypedEventStreamProcessorBuilder;
 import io.zeebe.broker.system.deployment.data.TopicPartitions;
 import io.zeebe.broker.system.deployment.data.TopicPartitions.TopicPartition;
 import io.zeebe.broker.system.deployment.data.TopicPartitions.TopicPartitionIterator;
-import io.zeebe.broker.system.log.PartitionEvent;
-import io.zeebe.broker.system.log.PartitionState;
 import io.zeebe.broker.system.log.TopicEvent;
 import io.zeebe.broker.system.log.TopicState;
 import io.zeebe.protocol.clientapi.EventType;
@@ -55,7 +53,6 @@ public class PartitionCollector
     public void registerWith(TypedEventStreamProcessorBuilder builder)
     {
         builder
-            .onEvent(EventType.PARTITION_EVENT, PartitionState.CREATED, new PartitionCreatedProcessor())
             .onEvent(EventType.TOPIC_EVENT, TopicState.CREATED, new TopicCreatedProcessor())
             .withStateResource(partitions.getRawMap());
     }
@@ -102,23 +99,4 @@ public class PartitionCollector
 
     }
 
-    protected class PartitionCreatedProcessor implements TypedEventProcessor<PartitionEvent>
-    {
-        @Override
-        public void processEvent(TypedEvent<PartitionEvent> event)
-        {
-            // just add the created partition to the index
-        }
-
-        @Override
-        public void updateState(TypedEvent<PartitionEvent> event)
-        {
-            final PartitionEvent partitionEvent = event.getValue();
-            final DirectBuffer topicName = partitionEvent.getTopicName();
-            final int partitionId = partitionEvent.getPartitionId();
-
-            partitions.put(partitionId, topicName, TopicPartitions.STATE_CREATING);
-        }
-
-    }
 }

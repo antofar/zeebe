@@ -36,8 +36,6 @@ import io.zeebe.broker.system.deployment.data.WorkflowVersions;
 import io.zeebe.broker.system.deployment.handler.DeploymentEventWriter;
 import io.zeebe.broker.system.deployment.handler.RemoteWorkflowsManager;
 import io.zeebe.broker.system.deployment.service.DeploymentManager;
-import io.zeebe.broker.system.log.PartitionEvent;
-import io.zeebe.broker.system.log.PartitionState;
 import io.zeebe.broker.system.log.TopicEvent;
 import io.zeebe.broker.system.log.TopicState;
 import io.zeebe.broker.topic.StreamProcessorControl;
@@ -100,7 +98,6 @@ public class CreateDeploymentStreamProcessorTest
 
         control.blockAfterDeploymentEvent(e -> e.getValue().getState() == DeploymentState.VALIDATED);
 
-        rule.writeEvent(partitionCreated(STREAM_NAME, 1));
         rule.writeEvent(topicCreated(STREAM_NAME, 1));
         rule.writeEvent(createDeployment(ONE_TASK_PROCESS));
 
@@ -144,15 +141,4 @@ public class CreateDeploymentStreamProcessorTest
         return event;
     }
 
-    protected PartitionEvent partitionCreated(String topicName, int partitionId)
-    {
-        final PartitionEvent event = new PartitionEvent();
-        event.setState(PartitionState.CREATED);
-        event.setTopicName(BufferUtil.wrapString(topicName));
-        event.setParitionId(partitionId);
-        event.setCreator(BufferUtil.wrapString("host"), 1234);
-        event.setReplicationFactor(1);
-
-        return event;
-    }
 }
