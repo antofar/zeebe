@@ -1,6 +1,7 @@
 package io.zeebe.broker.clustering.orchestration.topic;
 
 import io.zeebe.broker.Loggers;
+import io.zeebe.broker.clustering.api.CreatePartitionRequest;
 import io.zeebe.broker.clustering.base.partitions.Partition;
 import io.zeebe.broker.clustering.base.topology.NodeInfo;
 import io.zeebe.broker.clustering.base.topology.PartitionInfo;
@@ -20,6 +21,9 @@ import io.zeebe.servicecontainer.Injector;
 import io.zeebe.servicecontainer.Service;
 import io.zeebe.servicecontainer.ServiceStartContext;
 import io.zeebe.servicecontainer.ServiceStopContext;
+import io.zeebe.transport.ClientResponse;
+import io.zeebe.transport.ClientTransport;
+import io.zeebe.transport.RemoteAddress;
 import io.zeebe.util.buffer.BufferUtil;
 import io.zeebe.util.sched.Actor;
 import io.zeebe.util.sched.future.ActorFuture;
@@ -40,6 +44,7 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
     private final Injector<Partition> leaderSystemPartitionInjector = new Injector<>();
     private final Injector<IdGenerator> idGeneratorInjector = new Injector<>();
     private final Injector<NodeOrchestratingService> nodeOrchestratingServiceInjector = new Injector<>();
+    private final Injector<ClientTransport> managmentClientApiInjector = new Injector<>();
 
     private ClusterTopicState clusterTopicState;
     private TopologyManager topologyManager;
@@ -48,6 +53,7 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
     private TypedStreamWriter streamWriter;
     private IdGenerator idGenerator;
     private NodeOrchestratingService nodeOrchestratingService;
+    private ClientTransport clientTransport;
 
     @Override
     public void start(final ServiceStartContext startContext)
@@ -57,6 +63,7 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
         leaderSystemPartition = leaderSystemPartitionInjector.getValue();
         idGenerator = idGeneratorInjector.getValue();
         nodeOrchestratingService = nodeOrchestratingServiceInjector.getValue();
+        clientTransport = managmentClientApiInjector.getValue();
 
         final TypedStreamEnvironment typedStreamEnvironment = new TypedStreamEnvironment(leaderSystemPartition.getLogStream(), null);
         streamReader = typedStreamEnvironment.buildStreamReader();
@@ -193,6 +200,27 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
             if (throwable == null)
             {
                 LOG.debug("Got next node {} to send create partition request.", nodeInfo);
+
+
+                final CreatePartitionRequest request = new CreatePartitionRequest()
+                    .topicName(topicInfo.getTopicName())
+                    .partitionId(partitionId)
+                    .replicationFactor(topicInfo.getReplicationFactor());
+
+                final RemoteAddress remoteAddress = clientTransport.registerRemoteAddress(nodeInfo.getManagementApiAddress());
+                final ActorFuture<ClientResponse> responseFuture = clientTransport.getOutput().sendRequest(remoteAddress, request);
+
+                actor.runOnCompletion(responseFuture, (createPartitionResponse, createPartitionError) ->
+                {
+                    if (createPartitionError != null)
+                    {
+                        LOG.error("Error while creating partition {}", partitionId, createPartitionError);
+                    }
+                    else
+                    {
+                        LOG.debug("Partition created");
+                    }
+                });
             }
             else
             {
@@ -231,5 +259,10 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
     public Injector<NodeOrchestratingService> getNodeOrchestratingServiceInjector()
     {
         return nodeOrchestratingServiceInjector;
+    }
+
+    public Injector<ClientTransport> getManagmentClientApiInjector()
+    {
+        return managmentClientApiInjector;
     }
 }

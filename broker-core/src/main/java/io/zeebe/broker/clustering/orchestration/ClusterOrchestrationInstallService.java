@@ -6,6 +6,7 @@ import io.zeebe.broker.clustering.orchestration.id.IdGenerator;
 import io.zeebe.broker.clustering.orchestration.state.ClusterTopicState;
 import io.zeebe.broker.clustering.orchestration.topic.RequestPartitionsMessageHandler;
 import io.zeebe.broker.clustering.orchestration.topic.TopicCreationReviserService;
+import io.zeebe.broker.transport.TransportServiceNames;
 import io.zeebe.broker.transport.controlmessage.ControlMessageHandlerManager;
 import io.zeebe.servicecontainer.*;
 import io.zeebe.transport.ServerOutput;
@@ -75,6 +76,7 @@ public class ClusterOrchestrationInstallService implements Service<Void>
                         .dependency(partitionServiceName, topicCreationReviserService.getLeaderSystemPartitionInjector())
                         .dependency(ID_GENERATOR_SERVICE_NAME, topicCreationReviserService.getIdGeneratorInjector())
                         .dependency(NODE_ORCHESTRATING_SERVICE_NAME, topicCreationReviserService.getNodeOrchestratingServiceInjector())
+                        .dependency(TransportServiceNames.clientTransport(TransportServiceNames.MANAGEMENT_API_CLIENT_NAME), topicCreationReviserService.getManagmentClientApiInjector())
                         .install();
 
         compositeInstall.createService(REQUEST_PARTITIONS_MESSAGE_HANDLER_SERVICE_NAME, requestPartitionsMessageHandler)
