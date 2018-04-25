@@ -2,6 +2,7 @@ package io.zeebe.broker.clustering.orchestration.topic;
 
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.base.partitions.Partition;
+import io.zeebe.broker.clustering.base.topology.NodeInfo;
 import io.zeebe.broker.clustering.base.topology.PartitionInfo;
 import io.zeebe.broker.clustering.base.topology.ReadableTopology;
 import io.zeebe.broker.clustering.base.topology.TopologyManager;
@@ -46,6 +47,7 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
     private TypedStreamReader streamReader;
     private TypedStreamWriter streamWriter;
     private IdGenerator idGenerator;
+    private NodeOrchestratingService nodeOrchestratingService;
 
     @Override
     public void start(final ServiceStartContext startContext)
@@ -54,6 +56,7 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
         topologyManager = topologyManagerInjector.getValue();
         leaderSystemPartition = leaderSystemPartitionInjector.getValue();
         idGenerator = idGeneratorInjector.getValue();
+        nodeOrchestratingService = nodeOrchestratingServiceInjector.getValue();
 
         final TypedStreamEnvironment typedStreamEnvironment = new TypedStreamEnvironment(leaderSystemPartition.getLogStream(), null);
         streamReader = typedStreamEnvironment.buildStreamReader();
@@ -183,7 +186,19 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
 
     private void sendCreatePartitionRequest(final TopicInfo topicInfo, final Integer partitionId)
     {
+        final ActorFuture<NodeInfo> nextSocketAddressFuture = nodeOrchestratingService.getNextSocketAddress(null);
 
+        actor.runOnCompletion(nextSocketAddressFuture, (nodeInfo, throwable) ->
+        {
+            if (throwable == null)
+            {
+                LOG.debug("Got next node {} to send create partition request.", nodeInfo);
+            }
+            else
+            {
+                LOG.error("Problem in resolving next node address to send partition create request.", throwable);
+            }
+        });
 
     }
 
