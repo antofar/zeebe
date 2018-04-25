@@ -17,7 +17,7 @@
  */
 package io.zeebe.broker.task.processor;
 
-import io.zeebe.broker.logstreams.processor.TypedEvent;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.broker.logstreams.processor.TypedStreamReader;
 import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
 import io.zeebe.broker.task.data.TaskEvent;
@@ -48,7 +48,7 @@ public class TaskEventWriter implements AutoCloseable
      */
     public boolean tryWriteTaskEvent(final long sourceEventPosition, TaskState newState)
     {
-        final TypedEvent<TaskEvent> event = reader.readValue(sourceEventPosition, TaskEvent.class);
+        final TypedRecord<TaskEvent> event = reader.readValue(sourceEventPosition, TaskEvent.class);
 
         final TaskEvent taskEvent = event.getValue().setState(newState);
 

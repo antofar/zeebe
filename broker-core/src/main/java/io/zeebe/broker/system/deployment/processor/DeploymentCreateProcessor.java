@@ -33,8 +33,8 @@ import org.slf4j.Logger;
 
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.logstreams.processor.TypedBatchWriter;
-import io.zeebe.broker.logstreams.processor.TypedEvent;
-import io.zeebe.broker.logstreams.processor.TypedEventProcessor;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
+import io.zeebe.broker.logstreams.processor.TypedRecordProcessor;
 import io.zeebe.broker.logstreams.processor.TypedResponseWriter;
 import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
 import io.zeebe.broker.system.deployment.data.PendingDeployments;
@@ -60,7 +60,7 @@ import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.util.buffer.BufferUtil;
 import io.zeebe.util.collection.IntArrayListIterator;
 
-public class DeploymentCreateProcessor implements TypedEventProcessor<DeploymentEvent>
+public class DeploymentCreateProcessor implements TypedRecordProcessor<DeploymentEvent>
 {
     private static final Logger LOG = Loggers.SYSTEM_LOGGER;
 
@@ -85,7 +85,7 @@ public class DeploymentCreateProcessor implements TypedEventProcessor<Deployment
     }
 
     @Override
-    public void processEvent(TypedEvent<DeploymentEvent> event)
+    public void processRecord(TypedRecord<DeploymentEvent> event)
     {
         final DeploymentEvent deploymentEvent = event.getValue();
         final DirectBuffer topicName = deploymentEvent.getTopicName();
@@ -266,7 +266,7 @@ public class DeploymentCreateProcessor implements TypedEventProcessor<Deployment
     }
 
     @Override
-    public boolean executeSideEffects(TypedEvent<DeploymentEvent> event, TypedResponseWriter responseWriter)
+    public boolean executeSideEffects(TypedRecord<DeploymentEvent> event, TypedResponseWriter responseWriter)
     {
         final DeploymentEvent deploymentEvent = event.getValue();
 
@@ -281,7 +281,7 @@ public class DeploymentCreateProcessor implements TypedEventProcessor<Deployment
     }
 
     @Override
-    public long writeEvent(TypedEvent<DeploymentEvent> event, TypedStreamWriter writer)
+    public long writeRecord(TypedRecord<DeploymentEvent> event, TypedStreamWriter writer)
     {
         final DeploymentEvent deploymentEvent = event.getValue();
 
@@ -314,7 +314,7 @@ public class DeploymentCreateProcessor implements TypedEventProcessor<Deployment
         }
     }
 
-    private Consumer<RecordMetadata> addRequestMetadata(TypedEvent<DeploymentEvent> event)
+    private Consumer<RecordMetadata> addRequestMetadata(TypedRecord<DeploymentEvent> event)
     {
         final RecordMetadata metadata = event.getMetadata();
         return m -> m
@@ -323,7 +323,7 @@ public class DeploymentCreateProcessor implements TypedEventProcessor<Deployment
     }
 
     @Override
-    public void updateState(TypedEvent<DeploymentEvent> event)
+    public void updateState(TypedRecord<DeploymentEvent> event)
     {
         final DeploymentEvent deploymentEvent = event.getValue();
 

@@ -25,8 +25,8 @@ import org.agrona.DirectBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
 
 import io.zeebe.broker.logstreams.processor.StreamProcessorLifecycleAware;
-import io.zeebe.broker.logstreams.processor.TypedEvent;
-import io.zeebe.broker.logstreams.processor.TypedEventProcessor;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
+import io.zeebe.broker.logstreams.processor.TypedRecordProcessor;
 import io.zeebe.broker.logstreams.processor.TypedStreamEnvironment;
 import io.zeebe.broker.logstreams.processor.TypedStreamProcessor;
 import io.zeebe.broker.logstreams.processor.TypedStreamReader;
@@ -36,7 +36,8 @@ import io.zeebe.broker.task.data.TaskEvent;
 import io.zeebe.broker.task.data.TaskState;
 import io.zeebe.map.Long2BytesZbMap;
 import io.zeebe.map.iterator.Long2BytesZbMapEntry;
-import io.zeebe.protocol.clientapi.EventType;
+import io.zeebe.protocol.clientapi.Intent;
+import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.util.sched.ScheduledTimer;
 import io.zeebe.util.sched.clock.ActorClock;
 
@@ -109,10 +110,10 @@ public class TaskExpireLockStreamProcessor implements StreamProcessorLifecycleAw
 
     public TypedStreamProcessor createStreamProcessor(TypedStreamEnvironment environment)
     {
-        final TypedEventProcessor<TaskEvent> registerTask = new TypedEventProcessor<TaskEvent>()
+        final TypedRecordProcessor<TaskEvent> registerTask = new TypedRecordProcessor<TaskEvent>()
         {
             @Override
-            public void updateState(TypedEvent<TaskEvent> event)
+            public void updateState(TypedRecord<TaskEvent> event)
             {
                 final long lockTime = event.getValue().getLockTime();
 
@@ -123,20 +124,20 @@ public class TaskExpireLockStreamProcessor implements StreamProcessorLifecycleAw
             }
         };
 
-        final TypedEventProcessor<TaskEvent> unregisterTask = new TypedEventProcessor<TaskEvent>()
+        final TypedRecordProcessor<TaskEvent> unregisterTask = new TypedRecordProcessor<TaskEvent>()
         {
             @Override
-            public void updateState(TypedEvent<TaskEvent> event)
+            public void updateState(TypedRecord<TaskEvent> event)
             {
                 expirationMap.remove(event.getKey());
             }
         };
 
         return environment.newStreamProcessor()
-            .onEvent(EventType.TASK_EVENT, TaskState.LOCKED, registerTask)
-            .onEvent(EventType.TASK_EVENT, TaskState.LOCK_EXPIRED, unregisterTask)
-            .onEvent(EventType.TASK_EVENT, TaskState.COMPLETED, unregisterTask)
-            .onEvent(EventType.TASK_EVENT, TaskState.FAILED, unregisterTask)
+            .onEvent(ValueType.TASK, Intent.LOCKED, registerTask)
+            .onEvent(ValueType.TASK, Intent.LOCK_EXPIRED, unregisterTask)
+            .onEvent(ValueType.TASK, Intent.COMPLETED, unregisterTask)
+            .onEvent(ValueType.TASK, Intent.FAILED, unregisterTask)
             .withListener(this)
             .withStateResource(expirationMap)
             .build();

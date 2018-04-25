@@ -35,18 +35,18 @@ public class TypedResponseWriterImpl implements TypedResponseWriter
     }
 
     @Override
-    public boolean writeRejection(TypedEvent<?> record)
+    public boolean writeRejection(TypedRecord<?> record)
     {
         return write(RecordType.COMMAND_REJECTION, record.getMetadata().getIntent(), record);
     }
 
     @Override
-    public boolean writeEvent(Intent intent, TypedEvent<?> record)
+    public boolean writeEvent(Intent intent, TypedRecord<?> record)
     {
         return write(RecordType.EVENT, intent, record);
     }
 
-    private boolean write(RecordType type, Intent intent, TypedEvent<?> record)
+    private boolean write(RecordType type, Intent intent, TypedRecord<?> record)
     {
         final RecordMetadata metadata = record.getMetadata();
 

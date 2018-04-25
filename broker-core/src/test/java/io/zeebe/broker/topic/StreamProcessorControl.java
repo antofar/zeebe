@@ -20,7 +20,7 @@ package io.zeebe.broker.topic;
 import java.util.function.Predicate;
 
 import io.zeebe.broker.incident.data.IncidentEvent;
-import io.zeebe.broker.logstreams.processor.TypedEvent;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.broker.system.log.PartitionEvent;
 import io.zeebe.broker.system.log.TopicEvent;
 import io.zeebe.broker.task.data.TaskEvent;
@@ -34,15 +34,15 @@ public interface StreamProcessorControl
 
     void blockAfterEvent(Predicate<LoggedEvent> test);
 
-    void blockAfterTaskEvent(Predicate<TypedEvent<TaskEvent>> test);
+    void blockAfterTaskEvent(Predicate<TypedRecord<TaskEvent>> test);
 
-    void blockAfterDeploymentEvent(Predicate<TypedEvent<DeploymentEvent>> test);
+    void blockAfterDeploymentEvent(Predicate<TypedRecord<DeploymentEvent>> test);
 
-    void blockAfterIncidentEvent(Predicate<TypedEvent<IncidentEvent>> test);
+    void blockAfterIncidentEvent(Predicate<TypedRecord<IncidentEvent>> test);
 
-    void blockAfterTopicEvent(Predicate<TypedEvent<TopicEvent>> test);
+    void blockAfterTopicEvent(Predicate<TypedRecord<TopicEvent>> test);
 
-    void blockAfterPartitionEvent(Predicate<TypedEvent<PartitionEvent>> test);
+    void blockAfterPartitionEvent(Predicate<TypedRecord<PartitionEvent>> test);
 
     void purgeSnapshot();
 

@@ -31,7 +31,7 @@ import io.zeebe.util.buffer.BufferUtil;
 import org.agrona.DirectBuffer;
 import org.agrona.collections.IntArrayList;
 
-public class WorkflowCreateProcessor implements TypedEventProcessor<WorkflowEvent>
+public class WorkflowCreateProcessor implements TypedRecordProcessor<WorkflowEvent>
 {
     private final TopicPartitions topicPartitions;
     private final PendingDeployments pendingDeployments;
@@ -54,7 +54,7 @@ public class WorkflowCreateProcessor implements TypedEventProcessor<WorkflowEven
     }
 
     @Override
-    public void processEvent(TypedEvent<WorkflowEvent> event)
+    public void processEvent(TypedRecord<WorkflowEvent> event)
     {
         partitionIds.clear();
 
@@ -80,7 +80,7 @@ public class WorkflowCreateProcessor implements TypedEventProcessor<WorkflowEven
     }
 
     @Override
-    public boolean executeSideEffects(TypedEvent<WorkflowEvent> event, TypedResponseWriter responseWriter)
+    public boolean executeSideEffects(TypedRecord<WorkflowEvent> event, TypedResponseWriter responseWriter)
     {
         return workflowRequestSender.distributeWorkflow(
                    partitionIds,
@@ -89,7 +89,7 @@ public class WorkflowCreateProcessor implements TypedEventProcessor<WorkflowEven
     }
 
     @Override
-    public void updateState(TypedEvent<WorkflowEvent> event)
+    public void updateState(TypedRecord<WorkflowEvent> event)
     {
         final WorkflowEvent workflowEvent = event.getValue();
 

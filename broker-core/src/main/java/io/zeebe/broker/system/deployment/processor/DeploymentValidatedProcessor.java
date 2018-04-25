@@ -23,13 +23,13 @@ import org.agrona.DirectBuffer;
 import org.slf4j.Logger;
 
 import io.zeebe.broker.Loggers;
-import io.zeebe.broker.logstreams.processor.TypedEvent;
-import io.zeebe.broker.logstreams.processor.TypedEventProcessor;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
+import io.zeebe.broker.logstreams.processor.TypedRecordProcessor;
 import io.zeebe.broker.system.deployment.data.PendingDeployments;
 import io.zeebe.broker.system.deployment.handler.DeploymentTimer;
 import io.zeebe.broker.workflow.data.DeploymentEvent;
 
-public class DeploymentValidatedProcessor implements TypedEventProcessor<DeploymentEvent>
+public class DeploymentValidatedProcessor implements TypedRecordProcessor<DeploymentEvent>
 {
     private static final Logger LOG = Loggers.SYSTEM_LOGGER;
 
@@ -43,7 +43,7 @@ public class DeploymentValidatedProcessor implements TypedEventProcessor<Deploym
     }
 
     @Override
-    public void processEvent(TypedEvent<DeploymentEvent> event)
+    public void processEvent(TypedRecord<DeploymentEvent> event)
     {
         // just add the event position to the index
 
@@ -51,7 +51,7 @@ public class DeploymentValidatedProcessor implements TypedEventProcessor<Deploym
     }
 
     @Override
-    public void updateState(TypedEvent<DeploymentEvent> event)
+    public void updateState(TypedRecord<DeploymentEvent> event)
     {
         final long deploymentKey = event.getKey();
         final DirectBuffer topicName = event.getValue().getTopicName();

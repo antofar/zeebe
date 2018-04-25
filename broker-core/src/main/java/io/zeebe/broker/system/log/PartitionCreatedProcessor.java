@@ -22,12 +22,12 @@ import io.zeebe.broker.logstreams.processor.*;
 import io.zeebe.util.buffer.BufferUtil;
 import org.agrona.DirectBuffer;
 
-public class PartitionCreatedProcessor implements TypedEventProcessor<PartitionEvent>
+public class PartitionCreatedProcessor implements TypedRecordProcessor<PartitionEvent>
 {
     protected final TopicsIndex topics;
     protected final TypedStreamReader reader;
 
-    protected TypedEvent<TopicEvent> createRequest;
+    protected TypedRecord<TopicEvent> createRequest;
 
     public PartitionCreatedProcessor(TopicsIndex topics, TypedStreamReader reader)
     {
@@ -36,7 +36,7 @@ public class PartitionCreatedProcessor implements TypedEventProcessor<PartitionE
     }
 
     @Override
-    public void processEvent(TypedEvent<PartitionEvent> event)
+    public void processEvent(TypedRecord<PartitionEvent> event)
     {
         final PartitionEvent value = event.getValue();
 
@@ -62,7 +62,7 @@ public class PartitionCreatedProcessor implements TypedEventProcessor<PartitionE
     }
 
     @Override
-    public boolean executeSideEffects(TypedEvent<PartitionEvent> event, TypedResponseWriter responseWriter)
+    public boolean executeSideEffects(TypedRecord<PartitionEvent> event, TypedResponseWriter responseWriter)
     {
         if (createRequest != null)
         {
@@ -75,7 +75,7 @@ public class PartitionCreatedProcessor implements TypedEventProcessor<PartitionE
     }
 
     @Override
-    public long writeEvent(TypedEvent<PartitionEvent> event, TypedStreamWriter writer)
+    public long writeRecord(TypedRecord<PartitionEvent> event, TypedStreamWriter writer)
     {
         if (createRequest != null)
         {
@@ -88,7 +88,7 @@ public class PartitionCreatedProcessor implements TypedEventProcessor<PartitionE
     }
 
     @Override
-    public void updateState(TypedEvent<PartitionEvent> event)
+    public void updateState(TypedRecord<PartitionEvent> event)
     {
         final DirectBuffer topicName = event.getValue().getTopicName();
 

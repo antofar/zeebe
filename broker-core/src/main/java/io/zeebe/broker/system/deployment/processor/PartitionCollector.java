@@ -20,8 +20,8 @@ package io.zeebe.broker.system.deployment.processor;
 import org.agrona.DirectBuffer;
 import org.agrona.collections.IntArrayList;
 
-import io.zeebe.broker.logstreams.processor.TypedEvent;
-import io.zeebe.broker.logstreams.processor.TypedEventProcessor;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
+import io.zeebe.broker.logstreams.processor.TypedRecordProcessor;
 import io.zeebe.broker.logstreams.processor.TypedEventStreamProcessorBuilder;
 import io.zeebe.broker.system.deployment.data.TopicPartitions;
 import io.zeebe.broker.system.deployment.data.TopicPartitions.TopicPartition;
@@ -65,12 +65,12 @@ public class PartitionCollector
         return partitions;
     }
 
-    protected class TopicCreatedProcessor implements TypedEventProcessor<TopicEvent>
+    protected class TopicCreatedProcessor implements TypedRecordProcessor<TopicEvent>
     {
         private final IntArrayList partitionIds = new IntArrayList();
 
         @Override
-        public void processEvent(TypedEvent<TopicEvent> event)
+        public void processEvent(TypedRecord<TopicEvent> event)
         {
             partitionIds.clear();
 
@@ -89,7 +89,7 @@ public class PartitionCollector
         }
 
         @Override
-        public void updateState(TypedEvent<TopicEvent> event)
+        public void updateState(TypedRecord<TopicEvent> event)
         {
             final DirectBuffer topicName = event.getValue().getName();
 
@@ -102,16 +102,16 @@ public class PartitionCollector
 
     }
 
-    protected class PartitionCreatedProcessor implements TypedEventProcessor<PartitionEvent>
+    protected class PartitionCreatedProcessor implements TypedRecordProcessor<PartitionEvent>
     {
         @Override
-        public void processEvent(TypedEvent<PartitionEvent> event)
+        public void processEvent(TypedRecord<PartitionEvent> event)
         {
             // just add the created partition to the index
         }
 
         @Override
-        public void updateState(TypedEvent<PartitionEvent> event)
+        public void updateState(TypedRecord<PartitionEvent> event)
         {
             final PartitionEvent partitionEvent = event.getValue();
             final DirectBuffer topicName = partitionEvent.getTopicName();

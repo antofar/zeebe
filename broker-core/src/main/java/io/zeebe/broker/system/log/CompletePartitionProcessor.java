@@ -20,7 +20,7 @@ package io.zeebe.broker.system.log;
 import io.zeebe.broker.logstreams.processor.*;
 import io.zeebe.broker.system.log.PendingPartitionsIndex.PendingPartition;
 
-public class CompletePartitionProcessor implements TypedEventProcessor<PartitionEvent>
+public class CompletePartitionProcessor implements TypedRecordProcessor<PartitionEvent>
 {
 
     protected final PendingPartitionsIndex partitions;
@@ -31,7 +31,7 @@ public class CompletePartitionProcessor implements TypedEventProcessor<Partition
     }
 
     @Override
-    public void processEvent(TypedEvent<PartitionEvent> event)
+    public void processEvent(TypedRecord<PartitionEvent> event)
     {
         final PartitionEvent value = event.getValue();
         final PendingPartition partition = partitions.get(value.getPartitionId());
@@ -47,19 +47,19 @@ public class CompletePartitionProcessor implements TypedEventProcessor<Partition
     }
 
     @Override
-    public boolean executeSideEffects(TypedEvent<PartitionEvent> event, TypedResponseWriter responseWriter)
+    public boolean executeSideEffects(TypedRecord<PartitionEvent> event, TypedResponseWriter responseWriter)
     {
         return true;
     }
 
     @Override
-    public long writeEvent(TypedEvent<PartitionEvent> event, TypedStreamWriter writer)
+    public long writeRecord(TypedRecord<PartitionEvent> event, TypedStreamWriter writer)
     {
         return writer.writeFollowupEvent(event.getKey(), event.getValue());
     }
 
     @Override
-    public void updateState(TypedEvent<PartitionEvent> event)
+    public void updateState(TypedRecord<PartitionEvent> event)
     {
         final PartitionEvent value = event.getValue();
 

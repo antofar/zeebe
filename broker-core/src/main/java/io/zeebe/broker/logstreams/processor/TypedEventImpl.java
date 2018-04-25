@@ -22,7 +22,7 @@ import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.protocol.impl.RecordMetadata;
 
 @SuppressWarnings({"rawtypes"})
-public class TypedEventImpl implements TypedEvent
+public class TypedEventImpl implements TypedRecord
 {
     protected LoggedEvent rawEvent;
     protected RecordMetadata metadata;

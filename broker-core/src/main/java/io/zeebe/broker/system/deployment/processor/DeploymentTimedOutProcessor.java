@@ -34,7 +34,7 @@ import io.zeebe.protocol.impl.RecordMetadata;
 import org.agrona.collections.LongArrayList;
 import org.slf4j.Logger;
 
-public class DeploymentTimedOutProcessor implements TypedEventProcessor<DeploymentEvent>
+public class DeploymentTimedOutProcessor implements TypedRecordProcessor<DeploymentEvent>
 {
     private static final Logger LOG = Loggers.SYSTEM_LOGGER;
 
@@ -58,12 +58,19 @@ public class DeploymentTimedOutProcessor implements TypedEventProcessor<Deployme
     }
 
     @Override
-    public void processEvent(TypedEvent<DeploymentEvent> event)
+    public void processEvent(TypedRecord<DeploymentEvent> event)
     {
         final PendingDeployment pendingDeployment = pendingDeployments.get(event.getKey());
 
         if (pendingDeployment != null && !pendingDeployment.isResolved())
         {
+            /*
+             * TODO: braucht man REJECT überhaupt im Lifecycle noch? oder kann man Workflow DELETE sofort schreiben,
+             *   wenn man TIMED_OUT sieht und das valide ist? Würde ungerne die REJECTION-Idee hier brechen;
+             *   oder geht es hier eigentlich um Fehlschlag, sodass FAILED der richtige Name wäre?
+             *   oder sollte man dem User TIMED_OUT schon schicken?
+             */
+
             event.getValue().setState(REJECT);
 
             workflowKeys.clear();
@@ -98,7 +105,7 @@ public class DeploymentTimedOutProcessor implements TypedEventProcessor<Deployme
     }
 
     @Override
-    public long writeEvent(TypedEvent<DeploymentEvent> event, TypedStreamWriter writer)
+    public long writeRecord(TypedRecord<DeploymentEvent> event, TypedStreamWriter writer)
     {
         if (event.getValue().getState() == REJECT)
         {
@@ -123,7 +130,7 @@ public class DeploymentTimedOutProcessor implements TypedEventProcessor<Deployme
         }
     }
 
-    private Consumer<RecordMetadata> copyRequestMetadata(TypedEvent<DeploymentEvent> event)
+    private Consumer<RecordMetadata> copyRequestMetadata(TypedRecord<DeploymentEvent> event)
     {
         final RecordMetadata metadata = event.getMetadata();
         return m -> m
@@ -132,7 +139,7 @@ public class DeploymentTimedOutProcessor implements TypedEventProcessor<Deployme
     }
 
     @Override
-    public void updateState(TypedEvent<DeploymentEvent> event)
+    public void updateState(TypedRecord<DeploymentEvent> event)
     {
         final DeploymentEvent deploymentEvent = event.getValue();
 

@@ -57,7 +57,7 @@ public class DeploymentEventWriter implements StreamProcessorLifecycleAware
      */
     public void writeDeploymentEvent(final long sourceEventPosition, DeploymentState newState)
     {
-        final TypedEvent<DeploymentEvent> event = reader.readValue(sourceEventPosition, DeploymentEvent.class);
+        final TypedRecord<DeploymentEvent> event = reader.readValue(sourceEventPosition, DeploymentEvent.class);
 
         final DeploymentEvent deploymentEvent = event.getValue().setState(newState);
 
@@ -75,7 +75,7 @@ public class DeploymentEventWriter implements StreamProcessorLifecycleAware
         });
     }
 
-    private Consumer<RecordMetadata> copyRequestMetadata(TypedEvent<DeploymentEvent> event)
+    private Consumer<RecordMetadata> copyRequestMetadata(TypedRecord<DeploymentEvent> event)
     {
         final RecordMetadata metadata = event.getMetadata();
         return m -> m

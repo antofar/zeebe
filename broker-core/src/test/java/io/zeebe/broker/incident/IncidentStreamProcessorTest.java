@@ -29,7 +29,7 @@ import org.junit.Test;
 import io.zeebe.broker.incident.data.IncidentEvent;
 import io.zeebe.broker.incident.data.IncidentState;
 import io.zeebe.broker.incident.processor.IncidentStreamProcessor;
-import io.zeebe.broker.logstreams.processor.TypedEvent;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.broker.logstreams.processor.TypedStreamEnvironment;
 import io.zeebe.broker.logstreams.processor.TypedStreamProcessor;
 import io.zeebe.broker.task.data.TaskEvent;
@@ -73,7 +73,7 @@ public class IncidentStreamProcessorTest
         // then
         waitForEventInState(IncidentState.CREATE_REJECTED);
 
-        final List<TypedEvent<IncidentEvent>> incidentEvents = rule.events().onlyIncidentEvents().collect(Collectors.toList());
+        final List<TypedRecord<IncidentEvent>> incidentEvents = rule.events().onlyIncidentEvents().collect(Collectors.toList());
         assertThat(incidentEvents).extracting("value.state")
             .containsExactly(
                 IncidentState.CREATE,
@@ -117,7 +117,7 @@ public class IncidentStreamProcessorTest
 
         // then
         waitForEventInState(IncidentState.DELETED);
-        final List<TypedEvent<IncidentEvent>> incidentEvents = rule.events().onlyIncidentEvents().collect(Collectors.toList());
+        final List<TypedRecord<IncidentEvent>> incidentEvents = rule.events().onlyIncidentEvents().collect(Collectors.toList());
 
         assertThat(incidentEvents).extracting("value.state")
             .containsExactly(

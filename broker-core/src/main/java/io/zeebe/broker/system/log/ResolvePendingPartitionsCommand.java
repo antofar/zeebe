@@ -77,7 +77,7 @@ public class ResolvePendingPartitionsCommand implements CloseableSilently, Topol
             final PendingPartition partition = partitionIt.next();
             if (partition.getCreationTimeout() < now)
             {
-                final TypedEvent<PartitionEvent> event = reader.readValue(partition.getPosition(), PartitionEvent.class);
+                final TypedRecord<PartitionEvent> event = reader.readValue(partition.getPosition(), PartitionEvent.class);
 
                 event.getValue().setState(PartitionState.CREATE_EXPIRE);
 
@@ -101,7 +101,7 @@ public class ResolvePendingPartitionsCommand implements CloseableSilently, Topol
                 final PendingPartition pendingPartition = partitions.get(partitionId);
                 if (pendingPartition != null && leader != null)
                 {
-                    final TypedEvent<PartitionEvent> event = reader.readValue(pendingPartition.getPosition(), PartitionEvent.class);
+                    final TypedRecord<PartitionEvent> event = reader.readValue(pendingPartition.getPosition(), PartitionEvent.class);
 
                     event.getValue().setState(PartitionState.CREATE_COMPLETE);
 

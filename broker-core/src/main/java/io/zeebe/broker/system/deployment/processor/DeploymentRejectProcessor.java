@@ -23,7 +23,7 @@ import io.zeebe.broker.logstreams.processor.*;
 import io.zeebe.broker.system.deployment.data.PendingDeployments;
 import io.zeebe.broker.workflow.data.DeploymentEvent;
 
-public class DeploymentRejectProcessor implements TypedEventProcessor<DeploymentEvent>
+public class DeploymentRejectProcessor implements TypedRecordProcessor<DeploymentEvent>
 {
     private final PendingDeployments pendingDeployments;
 
@@ -33,7 +33,7 @@ public class DeploymentRejectProcessor implements TypedEventProcessor<Deployment
     }
 
     @Override
-    public void processEvent(TypedEvent<DeploymentEvent> event)
+    public void processEvent(TypedRecord<DeploymentEvent> event)
     {
         event.getValue().setState(REJECTED);
 
@@ -44,19 +44,19 @@ public class DeploymentRejectProcessor implements TypedEventProcessor<Deployment
     }
 
     @Override
-    public boolean executeSideEffects(TypedEvent<DeploymentEvent> event, TypedResponseWriter responseWriter)
+    public boolean executeSideEffects(TypedRecord<DeploymentEvent> event, TypedResponseWriter responseWriter)
     {
         return responseWriter.write(event);
     }
 
     @Override
-    public long writeEvent(TypedEvent<DeploymentEvent> event, TypedStreamWriter writer)
+    public long writeRecord(TypedRecord<DeploymentEvent> event, TypedStreamWriter writer)
     {
         return writer.writeFollowupEvent(event.getKey(), event.getValue());
     }
 
     @Override
-    public void updateState(TypedEvent<DeploymentEvent> event)
+    public void updateState(TypedRecord<DeploymentEvent> event)
     {
         pendingDeployments.remove(event.getKey());
     }

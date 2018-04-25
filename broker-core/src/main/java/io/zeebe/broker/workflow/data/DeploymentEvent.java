@@ -29,8 +29,6 @@ import io.zeebe.msgpack.value.ValueArray;
 
 public class DeploymentEvent extends UnpackedObject
 {
-    private final EnumProperty<DeploymentState> stateProp = new EnumProperty<>(PROP_STATE, DeploymentState.class);
-
     private final StringProperty topicNameProp = new StringProperty("topicName");
 
     private final ArrayProperty<DeploymentResource> resourcesProp = new ArrayProperty<>(
@@ -45,7 +43,7 @@ public class DeploymentEvent extends UnpackedObject
 
     public DeploymentEvent()
     {
-        this.declareProperty(stateProp)
+        this
             .declareProperty(topicNameProp)
             .declareProperty(resourcesProp)
             .declareProperty(deployedWorkflowsProp)

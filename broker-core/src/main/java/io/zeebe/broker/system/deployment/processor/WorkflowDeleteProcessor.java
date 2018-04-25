@@ -29,7 +29,7 @@ import io.zeebe.broker.workflow.data.WorkflowEvent;
 import io.zeebe.broker.workflow.data.WorkflowState;
 import org.agrona.collections.IntArrayList;
 
-public class WorkflowDeleteProcessor implements TypedEventProcessor<WorkflowEvent>
+public class WorkflowDeleteProcessor implements TypedRecordProcessor<WorkflowEvent>
 {
     private final PendingDeployments pendingDeployments;
     private final PendingWorkflows pendingWorkflows;
@@ -52,7 +52,7 @@ public class WorkflowDeleteProcessor implements TypedEventProcessor<WorkflowEven
     }
 
     @Override
-    public void processEvent(TypedEvent<WorkflowEvent> event)
+    public void processEvent(TypedRecord<WorkflowEvent> event)
     {
         event.getValue().setState(WorkflowState.DELETED);
 
@@ -75,7 +75,7 @@ public class WorkflowDeleteProcessor implements TypedEventProcessor<WorkflowEven
     }
 
     @Override
-    public boolean executeSideEffects(TypedEvent<WorkflowEvent> event, TypedResponseWriter responseWriter)
+    public boolean executeSideEffects(TypedRecord<WorkflowEvent> event, TypedResponseWriter responseWriter)
     {
         return workflowMessageSender.deleteWorkflow(
                    partitionIds,
@@ -84,13 +84,13 @@ public class WorkflowDeleteProcessor implements TypedEventProcessor<WorkflowEven
     }
 
     @Override
-    public long writeEvent(TypedEvent<WorkflowEvent> event, TypedStreamWriter writer)
+    public long writeRecord(TypedRecord<WorkflowEvent> event, TypedStreamWriter writer)
     {
         return writer.writeFollowupEvent(event.getKey(), event.getValue());
     }
 
     @Override
-    public void updateState(TypedEvent<WorkflowEvent> event)
+    public void updateState(TypedRecord<WorkflowEvent> event)
     {
         final long workflowKey = event.getKey();
         final WorkflowEvent workflowEvent = event.getValue();

@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 import org.junit.Rule;
 import org.junit.Test;
 
-import io.zeebe.broker.logstreams.processor.TypedEvent;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.broker.task.TaskQueueManagerService;
 import io.zeebe.broker.task.data.TaskEvent;
 import io.zeebe.broker.task.data.TaskState;
@@ -68,7 +68,7 @@ public class TaskLockExpirationStreamProcessorTest
         rule.getClock().addTime(TaskQueueManagerService.LOCK_EXPIRATION_INTERVAL.plus(Duration.ofSeconds(1)));
 
         // then
-        final List<TypedEvent<TaskEvent>> expirationEvents = doRepeatedly(
+        final List<TypedRecord<TaskEvent>> expirationEvents = doRepeatedly(
             () -> rule.events()
                 .onlyTaskEvents()
                 .inState(TaskState.EXPIRE_LOCK)

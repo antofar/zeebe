@@ -26,7 +26,7 @@ import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.logstreams.log.LogStreamReader;
 import io.zeebe.logstreams.log.LoggedEvent;
 import io.zeebe.msgpack.UnpackedObject;
-import io.zeebe.protocol.clientapi.EventType;
+import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.util.ReflectUtil;
 
@@ -37,7 +37,7 @@ public class TypedStreamReaderImpl implements TypedStreamReader
     protected final RecordMetadata metadata = new RecordMetadata();
     protected final Map<Class<? extends UnpackedObject>, UnpackedObject> eventCache;
 
-    public TypedStreamReaderImpl(LogStream stream, EnumMap<EventType, Class<? extends UnpackedObject>> eventRegistry)
+    public TypedStreamReaderImpl(LogStream stream, EnumMap<ValueType, Class<? extends UnpackedObject>> eventRegistry)
     {
         this.reader = new BufferedLogStreamReader(stream);
         this.eventCache = new HashMap<>();
@@ -46,7 +46,7 @@ public class TypedStreamReaderImpl implements TypedStreamReader
 
     @Override
     @SuppressWarnings({"unchecked"})
-    public <T extends UnpackedObject> TypedEvent<T> readValue(long position, Class<T> eventClass)
+    public <T extends UnpackedObject> TypedRecord<T> readValue(long position, Class<T> eventClass)
     {
         final boolean success = reader.seek(position);
         if (!success)

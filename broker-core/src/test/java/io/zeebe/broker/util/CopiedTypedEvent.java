@@ -17,7 +17,7 @@
  */
 package io.zeebe.broker.util;
 
-import io.zeebe.broker.logstreams.processor.TypedEvent;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.broker.logstreams.processor.TypedEventImpl;
 import io.zeebe.logstreams.log.LoggedEvent;
 import io.zeebe.msgpack.UnpackedObject;
@@ -62,7 +62,7 @@ public class CopiedTypedEvent extends TypedEventImpl
         throw new UnsupportedOperationException("not implemented yet; be the change you want to see in the world");
     }
 
-    public static <T extends UnpackedObject> TypedEvent<T> toTypedEvent(LoggedEvent event, Class<T> valueClass)
+    public static <T extends UnpackedObject> TypedRecord<T> toTypedEvent(LoggedEvent event, Class<T> valueClass)
     {
         final T value = ReflectUtil.newInstance(valueClass);
         value.wrap(event.getValueBuffer(), event.getValueOffset(), event.getValueLength());

@@ -19,15 +19,15 @@ package io.zeebe.broker.util;
 
 import java.util.stream.Stream;
 
-import io.zeebe.broker.logstreams.processor.TypedEvent;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.broker.workflow.data.DeploymentEvent;
 import io.zeebe.broker.workflow.data.DeploymentState;
 import io.zeebe.test.util.stream.StreamWrapper;
 
-public class DeploymentEventStream extends StreamWrapper<TypedEvent<DeploymentEvent>>
+public class DeploymentEventStream extends StreamWrapper<TypedRecord<DeploymentEvent>>
 {
 
-    public DeploymentEventStream(Stream<TypedEvent<DeploymentEvent>> wrappedStream)
+    public DeploymentEventStream(Stream<TypedRecord<DeploymentEvent>> wrappedStream)
     {
         super(wrappedStream);
     }

@@ -30,7 +30,7 @@ import io.zeebe.util.sched.clock.ActorClock;
 import io.zeebe.util.sched.future.ActorFuture;
 import org.agrona.DirectBuffer;
 
-public class CreatePartitionProcessor implements TypedEventProcessor<PartitionEvent>
+public class CreatePartitionProcessor implements TypedRecordProcessor<PartitionEvent>
 {
     private final ClientTransport clientTransport;
     protected final PendingPartitionsIndex partitions;
@@ -55,7 +55,7 @@ public class CreatePartitionProcessor implements TypedEventProcessor<PartitionEv
     }
 
     @Override
-    public void processEvent(TypedEvent<PartitionEvent> event)
+    public void processEvent(TypedRecord<PartitionEvent> event)
     {
         final PartitionEvent value = event.getValue();
         value.setState(PartitionState.CREATING);
@@ -65,7 +65,7 @@ public class CreatePartitionProcessor implements TypedEventProcessor<PartitionEv
     }
 
     @Override
-    public boolean executeSideEffects(TypedEvent<PartitionEvent> event, TypedResponseWriter responseWriter)
+    public boolean executeSideEffects(TypedRecord<PartitionEvent> event, TypedResponseWriter responseWriter)
     {
         final PartitionEvent value = event.getValue();
         final BrokerDto creator = value.getCreator();
@@ -105,13 +105,13 @@ public class CreatePartitionProcessor implements TypedEventProcessor<PartitionEv
     }
 
     @Override
-    public long writeEvent(TypedEvent<PartitionEvent> event, TypedStreamWriter writer)
+    public long writeRecord(TypedRecord<PartitionEvent> event, TypedStreamWriter writer)
     {
         return writer.writeFollowupEvent(event.getKey(), event.getValue());
     }
 
     @Override
-    public void updateState(TypedEvent<PartitionEvent> event)
+    public void updateState(TypedRecord<PartitionEvent> event)
     {
         final PartitionEvent value = event.getValue();
 

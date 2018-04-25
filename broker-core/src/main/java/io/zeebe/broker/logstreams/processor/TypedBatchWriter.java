@@ -23,7 +23,7 @@ import io.zeebe.protocol.clientapi.Intent;
 public interface TypedBatchWriter
 {
 
-    TypedBatchWriter addRejection(TypedEvent<? extends UnpackedObject> command);
+    TypedBatchWriter addRejection(TypedRecord<? extends UnpackedObject> command);
 
     TypedBatchWriter addCommand(Intent intent, UnpackedObject value);
     TypedBatchWriter addCommand(long key, Intent intent, UnpackedObject value);

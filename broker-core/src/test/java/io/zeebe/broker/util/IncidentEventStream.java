@@ -21,13 +21,13 @@ import java.util.stream.Stream;
 
 import io.zeebe.broker.incident.data.IncidentEvent;
 import io.zeebe.broker.incident.data.IncidentState;
-import io.zeebe.broker.logstreams.processor.TypedEvent;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.test.util.stream.StreamWrapper;
 
-public class IncidentEventStream extends StreamWrapper<TypedEvent<IncidentEvent>>
+public class IncidentEventStream extends StreamWrapper<TypedRecord<IncidentEvent>>
 {
 
-    public IncidentEventStream(Stream<TypedEvent<IncidentEvent>> wrappedStream)
+    public IncidentEventStream(Stream<TypedRecord<IncidentEvent>> wrappedStream)
     {
         super(wrappedStream);
     }

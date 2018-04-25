@@ -28,23 +28,23 @@ import io.zeebe.broker.workflow.data.WorkflowEvent;
 import io.zeebe.broker.workflow.data.WorkflowInstanceEvent;
 import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.msgpack.UnpackedObject;
-import io.zeebe.protocol.clientapi.EventType;
+import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.transport.ServerOutput;
 
 public class TypedStreamEnvironment
 {
     protected final ServerOutput output;
     protected final LogStream stream;
-    protected static final EnumMap<EventType, Class<? extends UnpackedObject>> EVENT_REGISTRY = new EnumMap<>(EventType.class);
+    protected static final EnumMap<ValueType, Class<? extends UnpackedObject>> EVENT_REGISTRY = new EnumMap<>(ValueType.class);
     static
     {
-        EVENT_REGISTRY.put(EventType.TOPIC_EVENT, TopicEvent.class);
-        EVENT_REGISTRY.put(EventType.PARTITION_EVENT, PartitionEvent.class);
-        EVENT_REGISTRY.put(EventType.DEPLOYMENT_EVENT, DeploymentEvent.class);
-        EVENT_REGISTRY.put(EventType.WORKFLOW_EVENT, WorkflowEvent.class);
-        EVENT_REGISTRY.put(EventType.TASK_EVENT, TaskEvent.class);
-        EVENT_REGISTRY.put(EventType.WORKFLOW_INSTANCE_EVENT, WorkflowInstanceEvent.class);
-        EVENT_REGISTRY.put(EventType.INCIDENT_EVENT, IncidentEvent.class);
+        EVENT_REGISTRY.put(ValueType.TOPIC, TopicEvent.class);
+        EVENT_REGISTRY.put(ValueType.PARTITION, PartitionEvent.class);
+        EVENT_REGISTRY.put(ValueType.DEPLOYMENT, DeploymentEvent.class);
+        EVENT_REGISTRY.put(ValueType.WORKFLOW, WorkflowEvent.class);
+        EVENT_REGISTRY.put(ValueType.TASK, TaskEvent.class);
+        EVENT_REGISTRY.put(ValueType.WORKFLOW_INSTANCE, WorkflowInstanceEvent.class);
+        EVENT_REGISTRY.put(ValueType.INCIDENT, IncidentEvent.class);
     }
 
     private TypedStreamReader reader;
@@ -56,7 +56,7 @@ public class TypedStreamEnvironment
         this.stream = stream;
     }
 
-    public EnumMap<EventType, Class<? extends UnpackedObject>> getEventRegistry()
+    public EnumMap<ValueType, Class<? extends UnpackedObject>> getEventRegistry()
     {
         return EVENT_REGISTRY;
     }

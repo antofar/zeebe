@@ -117,16 +117,16 @@ public class TypedStreamProcessorTest
     }
 
 
-    protected static class BatchProcessor implements TypedEventProcessor<TopicEvent>
+    protected static class BatchProcessor implements TypedRecordProcessor<TopicEvent>
     {
 
         @Override
-        public void processEvent(TypedEvent<TopicEvent> event)
+        public void processEvent(TypedRecord<TopicEvent> event)
         {
         }
 
         @Override
-        public long writeEvent(TypedEvent<TopicEvent> event, TypedStreamWriter writer)
+        public long writeRecord(TypedRecord<TopicEvent> event, TypedStreamWriter writer)
         {
             final TopicEvent value = event.getValue();
             value.setState(TopicState.CREATE_REJECTED);

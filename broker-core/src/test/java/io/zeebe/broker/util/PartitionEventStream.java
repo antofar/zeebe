@@ -19,15 +19,15 @@ package io.zeebe.broker.util;
 
 import java.util.stream.Stream;
 
-import io.zeebe.broker.logstreams.processor.TypedEvent;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.broker.system.log.PartitionEvent;
 import io.zeebe.broker.system.log.PartitionState;
 import io.zeebe.test.util.stream.StreamWrapper;
 
-public class PartitionEventStream extends StreamWrapper<TypedEvent<PartitionEvent>>
+public class PartitionEventStream extends StreamWrapper<TypedRecord<PartitionEvent>>
 {
 
-    public PartitionEventStream(Stream<TypedEvent<PartitionEvent>> wrappedStream)
+    public PartitionEventStream(Stream<TypedRecord<PartitionEvent>> wrappedStream)
     {
         super(wrappedStream);
     }

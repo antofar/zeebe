@@ -33,7 +33,7 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import io.zeebe.broker.logstreams.processor.TypedEvent;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.broker.logstreams.processor.TypedStreamEnvironment;
 import io.zeebe.broker.task.TaskSubscriptionManager;
 import io.zeebe.broker.task.data.TaskEvent;
@@ -83,7 +83,7 @@ public class TaskInstanceStreamProcessorTest
         // then
         waitForEventInState(TaskState.COMPLETED);
 
-        final List<TypedEvent<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
+        final List<TypedRecord<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
         assertThat(taskEvents).extracting("value.state")
             .containsExactly(
                     TaskState.CREATE,
@@ -117,7 +117,7 @@ public class TaskInstanceStreamProcessorTest
         // then
         waitForEventInState(TaskState.LOCK_REJECTED);
 
-        final List<TypedEvent<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
+        final List<TypedRecord<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
         assertThat(taskEvents).extracting("value.state")
             .containsExactly(
                     TaskState.CREATE,
@@ -143,7 +143,7 @@ public class TaskInstanceStreamProcessorTest
         // then
         waitForEventInState(TaskState.LOCK_REJECTED);
 
-        final List<TypedEvent<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
+        final List<TypedRecord<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
         assertThat(taskEvents).extracting("value.state")
             .containsExactly(
                     TaskState.LOCK,
@@ -172,7 +172,7 @@ public class TaskInstanceStreamProcessorTest
         // then
         waitForEventInState(TaskState.LOCK_EXPIRATION_REJECTED);
 
-        final List<TypedEvent<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
+        final List<TypedRecord<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
         assertThat(taskEvents).extracting("value.state")
             .containsExactly(
                     TaskState.CREATE,
@@ -206,7 +206,7 @@ public class TaskInstanceStreamProcessorTest
         // then
         waitForEventInState(TaskState.LOCK_EXPIRATION_REJECTED);
 
-        final List<TypedEvent<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
+        final List<TypedRecord<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
         assertThat(taskEvents).extracting("value.state")
             .containsExactly(
                     TaskState.CREATE,
@@ -237,7 +237,7 @@ public class TaskInstanceStreamProcessorTest
         // then
         waitForEventInState(TaskState.LOCK_EXPIRATION_REJECTED);
 
-        final List<TypedEvent<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
+        final List<TypedRecord<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
         assertThat(taskEvents).extracting("value.state")
             .containsExactly(
                     TaskState.CREATE,
@@ -273,7 +273,7 @@ public class TaskInstanceStreamProcessorTest
         // then
         waitForEventInState(TaskState.LOCK_EXPIRATION_REJECTED);
 
-        final List<TypedEvent<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
+        final List<TypedRecord<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
         assertThat(taskEvents).extracting("value.state")
             .containsExactly(
                     TaskState.CREATE,
@@ -299,7 +299,7 @@ public class TaskInstanceStreamProcessorTest
         // then
         waitForEventInState(TaskState.LOCK_EXPIRATION_REJECTED);
 
-        final List<TypedEvent<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
+        final List<TypedRecord<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
         assertThat(taskEvents).extracting("value.state")
             .containsExactly(
                     TaskState.EXPIRE_LOCK,
@@ -322,7 +322,7 @@ public class TaskInstanceStreamProcessorTest
         // then
         waitForEventInState(TaskState.CANCELED);
 
-        final List<TypedEvent<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
+        final List<TypedRecord<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
         assertThat(taskEvents).extracting("value.state")
             .containsExactly(
                 TaskState.CREATE,
@@ -350,7 +350,7 @@ public class TaskInstanceStreamProcessorTest
         // then
         waitForEventInState(TaskState.CANCELED);
 
-        final List<TypedEvent<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
+        final List<TypedRecord<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
         assertThat(taskEvents).extracting("value.state")
             .containsExactly(
                 TaskState.CREATE,
@@ -383,7 +383,7 @@ public class TaskInstanceStreamProcessorTest
         // then
         waitForEventInState(TaskState.CANCELED);
 
-        final List<TypedEvent<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
+        final List<TypedRecord<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
         assertThat(taskEvents).extracting("value.state")
             .containsExactly(
                 TaskState.CREATE,
@@ -419,7 +419,7 @@ public class TaskInstanceStreamProcessorTest
         // then
         waitForEventInState(TaskState.CANCEL_REJECTED);
 
-        final List<TypedEvent<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
+        final List<TypedRecord<TaskEvent>> taskEvents = rule.events().onlyTaskEvents().collect(Collectors.toList());
         assertThat(taskEvents).extracting("value.state")
             .containsExactly(
                 TaskState.CREATE,

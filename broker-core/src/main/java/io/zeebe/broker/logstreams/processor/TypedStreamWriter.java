@@ -27,12 +27,13 @@ public interface TypedStreamWriter
 {
     // TODO: javadoc
 
-    long writeRejection(TypedEvent<? extends UnpackedObject> command);
+    long writeRejection(TypedRecord<? extends UnpackedObject> command);
 
     long writeCommand(Intent intent, UnpackedObject value);
     long writeCommand(long key, Intent intent, UnpackedObject value);
     long writeCommand(long key, Intent intent, UnpackedObject value, Consumer<RecordMetadata> metadata);
 
+    // TODO: die benennung followUp vs new war vorher ganz nett; dadurch war der Code klarer
     long writeEvent(Intent intent, UnpackedObject value);
     long writeEvent(long key, Intent intent, UnpackedObject value);
     long writeEvent(long key, Intent intent, UnpackedObject value, Consumer<RecordMetadata> metadata);

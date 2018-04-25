@@ -28,7 +28,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import io.zeebe.broker.incident.data.IncidentEvent;
-import io.zeebe.broker.logstreams.processor.TypedEvent;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.broker.system.log.PartitionEvent;
 import io.zeebe.broker.system.log.TopicEvent;
 import io.zeebe.broker.task.data.TaskEvent;
@@ -249,31 +249,31 @@ public class TestStreams
         }
 
         @Override
-        public void blockAfterTaskEvent(Predicate<TypedEvent<TaskEvent>> test)
+        public void blockAfterTaskEvent(Predicate<TypedRecord<TaskEvent>> test)
         {
             blockAfterEvent(e -> Events.isTaskEvent(e) && test.test(CopiedTypedEvent.toTypedEvent(e, TaskEvent.class)));
         }
 
         @Override
-        public void blockAfterDeploymentEvent(Predicate<TypedEvent<DeploymentEvent>> test)
+        public void blockAfterDeploymentEvent(Predicate<TypedRecord<DeploymentEvent>> test)
         {
             blockAfterEvent(e -> Events.isDeploymentEvent(e) && test.test(CopiedTypedEvent.toTypedEvent(e, DeploymentEvent.class)));
         }
 
         @Override
-        public void blockAfterTopicEvent(Predicate<TypedEvent<TopicEvent>> test)
+        public void blockAfterTopicEvent(Predicate<TypedRecord<TopicEvent>> test)
         {
             blockAfterEvent(e -> Events.isTopicEvent(e) && test.test(CopiedTypedEvent.toTypedEvent(e, TopicEvent.class)));
         }
 
         @Override
-        public void blockAfterPartitionEvent(Predicate<TypedEvent<PartitionEvent>> test)
+        public void blockAfterPartitionEvent(Predicate<TypedRecord<PartitionEvent>> test)
         {
             blockAfterEvent(e -> Events.isPartitionEvent(e) && test.test(CopiedTypedEvent.toTypedEvent(e, PartitionEvent.class)));
         }
 
         @Override
-        public void blockAfterIncidentEvent(Predicate<TypedEvent<IncidentEvent>> test)
+        public void blockAfterIncidentEvent(Predicate<TypedRecord<IncidentEvent>> test)
         {
             blockAfterEvent(e -> Events.isIncidentEvent(e) && test.test(CopiedTypedEvent.toTypedEvent(e, IncidentEvent.class)));
         }

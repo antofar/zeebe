@@ -20,15 +20,15 @@ package io.zeebe.broker.system.log;
 import org.agrona.DirectBuffer;
 
 import io.zeebe.broker.logstreams.processor.TypedBatchWriter;
-import io.zeebe.broker.logstreams.processor.TypedEvent;
-import io.zeebe.broker.logstreams.processor.TypedEventProcessor;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
+import io.zeebe.broker.logstreams.processor.TypedRecordProcessor;
 import io.zeebe.broker.logstreams.processor.TypedResponseWriter;
 import io.zeebe.broker.logstreams.processor.TypedStreamProcessor;
 import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
 import io.zeebe.protocol.Protocol;
 import io.zeebe.transport.SocketAddress;
 
-public class CreateTopicProcessor implements TypedEventProcessor<TopicEvent>
+public class CreateTopicProcessor implements TypedRecordProcessor<TopicEvent>
 {
     protected final TopicsIndex topics;
     protected final PartitionIdGenerator idGenerator;
@@ -52,7 +52,7 @@ public class CreateTopicProcessor implements TypedEventProcessor<TopicEvent>
     }
 
     @Override
-    public void processEvent(TypedEvent<TopicEvent> event)
+    public void processEvent(TypedRecord<TopicEvent> event)
     {
         final TopicEvent value = event.getValue();
 
@@ -66,7 +66,7 @@ public class CreateTopicProcessor implements TypedEventProcessor<TopicEvent>
     }
 
     @Override
-    public boolean executeSideEffects(TypedEvent<TopicEvent> event, TypedResponseWriter responseWriter)
+    public boolean executeSideEffects(TypedRecord<TopicEvent> event, TypedResponseWriter responseWriter)
     {
         if (event.getValue().getState() == TopicState.CREATE_REJECTED)
         {
@@ -79,7 +79,7 @@ public class CreateTopicProcessor implements TypedEventProcessor<TopicEvent>
     }
 
     @Override
-    public long writeEvent(TypedEvent<TopicEvent> event, TypedStreamWriter writer)
+    public long writeRecord(TypedRecord<TopicEvent> event, TypedStreamWriter writer)
     {
         final TopicEvent value = event.getValue();
         if (value.getState() == TopicState.CREATE_REJECTED)
@@ -116,7 +116,7 @@ public class CreateTopicProcessor implements TypedEventProcessor<TopicEvent>
     }
 
     @Override
-    public void updateState(TypedEvent<TopicEvent> event)
+    public void updateState(TypedRecord<TopicEvent> event)
     {
         final TopicEvent value = event.getValue();
         if (value.getState() != TopicState.CREATE_REJECTED)

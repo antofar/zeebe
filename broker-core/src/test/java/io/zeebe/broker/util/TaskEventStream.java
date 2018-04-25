@@ -19,15 +19,15 @@ package io.zeebe.broker.util;
 
 import java.util.stream.Stream;
 
-import io.zeebe.broker.logstreams.processor.TypedEvent;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.broker.task.data.TaskEvent;
 import io.zeebe.broker.task.data.TaskState;
 import io.zeebe.test.util.stream.StreamWrapper;
 
-public class TaskEventStream extends StreamWrapper<TypedEvent<TaskEvent>>
+public class TaskEventStream extends StreamWrapper<TypedRecord<TaskEvent>>
 {
 
-    public TaskEventStream(Stream<TypedEvent<TaskEvent>> wrappedStream)
+    public TaskEventStream(Stream<TypedRecord<TaskEvent>> wrappedStream)
     {
         super(wrappedStream);
     }

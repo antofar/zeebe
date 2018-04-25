@@ -149,7 +149,7 @@ public class TypedStreamWriterImpl implements TypedStreamWriter, TypedBatchWrite
     }
 
     @Override
-    public long writeRejection(TypedEvent<? extends UnpackedObject> command)
+    public long writeRejection(TypedRecord<? extends UnpackedObject> command)
     {
         return writeRecord(command.getKey(), RecordType.COMMAND_REJECTION, command.getMetadata().getIntent(), command.getValue(), noop);
     }
@@ -179,7 +179,7 @@ public class TypedStreamWriterImpl implements TypedStreamWriter, TypedBatchWrite
     }
 
     @Override
-    public TypedBatchWriter addRejection(TypedEvent<? extends UnpackedObject> command)
+    public TypedBatchWriter addRejection(TypedRecord<? extends UnpackedObject> command)
     {
         return addRecord(command.getKey(), RecordType.COMMAND_REJECTION, command.getMetadata().getIntent(), command.getValue(), noop);
     }

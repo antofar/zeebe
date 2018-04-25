@@ -18,14 +18,14 @@
 package io.zeebe.broker.system.log;
 
 import io.zeebe.broker.logstreams.processor.TypedBatchWriter;
-import io.zeebe.broker.logstreams.processor.TypedEvent;
-import io.zeebe.broker.logstreams.processor.TypedEventProcessor;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
+import io.zeebe.broker.logstreams.processor.TypedRecordProcessor;
 import io.zeebe.broker.logstreams.processor.TypedResponseWriter;
 import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
 import io.zeebe.broker.system.log.PendingPartitionsIndex.PendingPartition;
 import io.zeebe.transport.SocketAddress;
 
-public class ExpirePartitionCreationProcessor implements TypedEventProcessor<PartitionEvent>
+public class ExpirePartitionCreationProcessor implements TypedRecordProcessor<PartitionEvent>
 {
     protected final PendingPartitionsIndex partitions;
     protected final PartitionIdGenerator idGenerator;
@@ -41,7 +41,7 @@ public class ExpirePartitionCreationProcessor implements TypedEventProcessor<Par
     }
 
     @Override
-    public void processEvent(TypedEvent<PartitionEvent> event)
+    public void processEvent(TypedRecord<PartitionEvent> event)
     {
         final PartitionEvent value = event.getValue();
 
@@ -58,13 +58,13 @@ public class ExpirePartitionCreationProcessor implements TypedEventProcessor<Par
     }
 
     @Override
-    public boolean executeSideEffects(TypedEvent<PartitionEvent> event, TypedResponseWriter responseWriter)
+    public boolean executeSideEffects(TypedRecord<PartitionEvent> event, TypedResponseWriter responseWriter)
     {
         return true;
     }
 
     @Override
-    public long writeEvent(TypedEvent<PartitionEvent> event, TypedStreamWriter writer)
+    public long writeRecord(TypedRecord<PartitionEvent> event, TypedStreamWriter writer)
     {
         final PartitionEvent value = event.getValue();
         final TypedBatchWriter batchWriter = writer.newBatch()
@@ -93,7 +93,7 @@ public class ExpirePartitionCreationProcessor implements TypedEventProcessor<Par
     }
 
     @Override
-    public void updateState(TypedEvent<PartitionEvent> event)
+    public void updateState(TypedRecord<PartitionEvent> event)
     {
         final PartitionEvent value = event.getValue();
         // removing the partition from the index to avoid expiration being triggered multiple times

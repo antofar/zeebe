@@ -24,8 +24,8 @@ import static org.agrona.BitUtil.SIZE_OF_LONG;
 import org.agrona.ExpandableArrayBuffer;
 
 import io.zeebe.broker.Loggers;
-import io.zeebe.broker.logstreams.processor.TypedEvent;
-import io.zeebe.broker.logstreams.processor.TypedEventProcessor;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
+import io.zeebe.broker.logstreams.processor.TypedRecordProcessor;
 import io.zeebe.broker.logstreams.processor.TypedResponseWriter;
 import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
 import io.zeebe.broker.system.deployment.data.PendingDeployments;
@@ -37,7 +37,7 @@ import io.zeebe.broker.system.deployment.handler.DeploymentTimer;
 import io.zeebe.broker.workflow.data.DeploymentEvent;
 import io.zeebe.util.buffer.BufferUtil;
 
-public class DeploymentDistributedProcessor implements TypedEventProcessor<DeploymentEvent>
+public class DeploymentDistributedProcessor implements TypedRecordProcessor<DeploymentEvent>
 {
     private final ExpandableArrayBuffer buffer = new ExpandableArrayBuffer(3 * (SIZE_OF_LONG + SIZE_OF_INT));
 
@@ -53,7 +53,7 @@ public class DeploymentDistributedProcessor implements TypedEventProcessor<Deplo
     }
 
     @Override
-    public void processEvent(TypedEvent<DeploymentEvent> event)
+    public void processEvent(TypedRecord<DeploymentEvent> event)
     {
         final PendingDeployment pendingDeployment = pendingDeployments.get(event.getKey());
 
@@ -73,7 +73,7 @@ public class DeploymentDistributedProcessor implements TypedEventProcessor<Deplo
     }
 
     @Override
-    public boolean executeSideEffects(TypedEvent<DeploymentEvent> event, TypedResponseWriter responseWriter)
+    public boolean executeSideEffects(TypedRecord<DeploymentEvent> event, TypedResponseWriter responseWriter)
     {
         if (event.getValue().getState() == CREATED)
         {
@@ -86,7 +86,7 @@ public class DeploymentDistributedProcessor implements TypedEventProcessor<Deplo
     }
 
     @Override
-    public long writeEvent(TypedEvent<DeploymentEvent> event, TypedStreamWriter writer)
+    public long writeRecord(TypedRecord<DeploymentEvent> event, TypedStreamWriter writer)
     {
         if (event.getValue().getState() == CREATED)
         {
@@ -99,7 +99,7 @@ public class DeploymentDistributedProcessor implements TypedEventProcessor<Deplo
     }
 
     @Override
-    public void updateState(TypedEvent<DeploymentEvent> event)
+    public void updateState(TypedRecord<DeploymentEvent> event)
     {
         final DeploymentEvent deploymentEvent = event.getValue();
         final long deploymentKey = event.getKey();

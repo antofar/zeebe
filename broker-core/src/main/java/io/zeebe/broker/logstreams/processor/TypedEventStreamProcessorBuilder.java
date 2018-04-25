@@ -28,16 +28,17 @@ import io.zeebe.logstreams.spi.ComposableSnapshotSupport;
 import io.zeebe.logstreams.spi.SnapshotSupport;
 import io.zeebe.map.ZbMap;
 import io.zeebe.msgpack.UnpackedObject;
-import io.zeebe.protocol.clientapi.EventType;
+import io.zeebe.protocol.clientapi.Intent;
+import io.zeebe.protocol.clientapi.ValueType;
 
-@SuppressWarnings({"rawtypes", "unchecked"})
+@SuppressWarnings("rawtypes")
 public class TypedEventStreamProcessorBuilder
 {
     protected final TypedStreamEnvironment environment;
 
     protected List<ComposableSnapshotSupport> stateResources = new ArrayList<>();
 
-    protected EnumMap<EventType, EnumMap> eventProcessors = new EnumMap<>(EventType.class);
+    protected EnumMap<ValueType, EnumMap<Intent, TypedRecordProcessor>> eventProcessors = new EnumMap<>(ValueType.class);
     protected List<StreamProcessorLifecycleAware> lifecycleListeners = new ArrayList<>();
 
     public TypedEventStreamProcessorBuilder(TypedStreamEnvironment environment)
@@ -45,16 +46,16 @@ public class TypedEventStreamProcessorBuilder
         this.environment = environment;
     }
 
-    public TypedEventStreamProcessorBuilder onEvent(EventType eventType, Enum state, TypedEventProcessor<?> processor)
+    public TypedEventStreamProcessorBuilder onEvent(ValueType eventType, Intent intent, TypedRecordProcessor<?> processor)
     {
-        EnumMap processorsForType = eventProcessors.get(eventType);
+        EnumMap<Intent, TypedRecordProcessor> processorsForType = eventProcessors.get(eventType);
         if (processorsForType == null)
         {
-            processorsForType = new EnumMap<>(state.getClass());
+            processorsForType = new EnumMap<>(Intent.class);
             eventProcessors.put(eventType, processorsForType);
         }
 
-        processorsForType.put(state, processor);
+        processorsForType.put(intent, processor);
 
         return this;
     }

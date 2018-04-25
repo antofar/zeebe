@@ -25,10 +25,10 @@ public interface TypedResponseWriter
     /**
      * @return true if successful
      */
-    boolean writeRejection(TypedEvent<?> record);
+    boolean writeRejection(TypedRecord<?> record);
 
     /**
      * @return true if successful
      */
-    boolean writeEvent(Intent intent, TypedEvent<?> record);
+    boolean writeEvent(Intent intent, TypedRecord<?> record);
 }

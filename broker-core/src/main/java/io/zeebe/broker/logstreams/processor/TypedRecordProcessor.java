@@ -17,18 +17,38 @@
  */
 package io.zeebe.broker.logstreams.processor;
 
+import io.zeebe.logstreams.processor.EventProcessor;
 import io.zeebe.msgpack.UnpackedObject;
-import io.zeebe.protocol.impl.RecordMetadata;
 
-public interface TypedEvent<T extends UnpackedObject>
+public interface TypedRecordProcessor<T extends UnpackedObject> extends StreamProcessorLifecycleAware
 {
-    long getPosition();
+    /**
+     * @see EventProcessor#processEvent()
+     */
+    default void processRecord(TypedRecord<T> record)
+    {
+    }
 
-    long getSourcePosition();
+    /**
+     * @see EventProcessor#executeSideEffects()
+     */
+    default boolean executeSideEffects(TypedRecord<T> record, TypedResponseWriter responseWriter)
+    {
+        return true;
+    }
 
-    long getKey();
+    /**
+     * @see EventProcessor#writeEvent(io.zeebe.logstreams.log.LogStreamWriter)
+     */
+    default long writeRecord(TypedRecord<T> record, TypedStreamWriter writer)
+    {
+        return 0;
+    }
 
-    RecordMetadata getMetadata();
-
-    T getValue();
+    /**
+     * @see EventProcessor#updateState()
+     */
+    default void updateState(TypedRecord<T> record)
+    {
+    }
 }
