@@ -44,9 +44,7 @@ public class TopicCreateProcessor implements TypedEventProcessor<TopicEvent>
     @Override
     public boolean executeSideEffects(final TypedEvent<TopicEvent> event, final TypedResponseWriter responseWriter)
     {
-        return true;
-        // TODO: readd
-        // return responseWriter.write(event);
+        return responseWriter.write(event);
     }
 
     @Override

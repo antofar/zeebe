@@ -47,7 +47,7 @@ public class CreateTopicTest
 
     public EmbeddedBrokerRule brokerRule = new EmbeddedBrokerRule();
 
-    public ClientRule clientRule = new ClientRule();
+    public ClientRule clientRule = new ClientRule(false);
 
     @Rule
     public RuleChain ruleChain = RuleChain
@@ -95,24 +95,23 @@ public class CreateTopicTest
         final TopicsClient topics = clientRule.topics();
         final Event topicEvent = topics.create("foo", 2).execute();
 
-        assertThat(topicEvent.getState()).isEqualTo("CREATED");
+        assertThat(topicEvent.getState()).isEqualTo("CREATING");
 
         waitUntil(() ->
-            clientRule.getClient().topics().getTopics().execute().getTopics().size() >= 2
+            clientRule.getClient().topics().getTopics().execute().getTopics().size() >= 1
         );
 
         // when
         final Topics returnedTopics = clientRule.topics().getTopics().execute();
 
         // then
-        assertThat(returnedTopics.getTopics()).hasSize(2);
+        assertThat(returnedTopics.getTopics()).hasSize(1);
         final Map<String, List<Partition>> topicsByName =
                 returnedTopics.getTopics()
                     .stream()
                     .collect(Collectors.toMap(Topic::getName, Topic::getPartitions));
 
         assertThat(topicsByName.get("foo")).hasSize(2);
-        assertThat(topicsByName.get(ClientRule.DEFAULT_TOPIC)).hasSize(1);
 
         Thread.sleep(2000);
     }
