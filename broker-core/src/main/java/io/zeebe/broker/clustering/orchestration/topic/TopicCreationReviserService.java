@@ -17,6 +17,9 @@
  */
 package io.zeebe.broker.clustering.orchestration.topic;
 
+import java.time.Duration;
+import java.util.*;
+
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.api.CreatePartitionRequest;
 import io.zeebe.broker.clustering.base.partitions.Partition;
@@ -39,16 +42,12 @@ import io.zeebe.servicecontainer.ServiceStopContext;
 import io.zeebe.transport.ClientResponse;
 import io.zeebe.transport.ClientTransport;
 import io.zeebe.transport.RemoteAddress;
-import io.zeebe.util.buffer.BufferUtil;
 import io.zeebe.util.sched.Actor;
 import io.zeebe.util.sched.future.ActorFuture;
 import org.agrona.DirectBuffer;
 import org.slf4j.Logger;
 
-import java.time.Duration;
-import java.util.*;
-
-public class TopicCreationReviserService extends Actor implements Service<Void>
+public class TopicCreationReviserService extends Actor implements Service<TopicCreationReviserService>
 {
     private static final Logger LOG = Loggers.ORCHESTRATION_LOGGER;
 
@@ -63,7 +62,6 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
 
     private ClusterTopicState clusterTopicState;
     private TopologyManager topologyManager;
-    private Partition leaderSystemPartition;
     private TypedStreamReader streamReader;
     private TypedStreamWriter streamWriter;
     private IdGenerator idGenerator;
@@ -75,11 +73,11 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
     {
         clusterTopicState = stateInjector.getValue();
         topologyManager = topologyManagerInjector.getValue();
-        leaderSystemPartition = leaderSystemPartitionInjector.getValue();
         idGenerator = idGeneratorInjector.getValue();
         nodeOrchestratingService = nodeOrchestratingServiceInjector.getValue();
         clientTransport = managmentClientApiInjector.getValue();
 
+        final Partition leaderSystemPartition = leaderSystemPartitionInjector.getValue();
         final TypedStreamEnvironment typedStreamEnvironment = new TypedStreamEnvironment(leaderSystemPartition.getLogStream(), null);
         streamReader = typedStreamEnvironment.buildStreamReader();
         streamWriter = typedStreamEnvironment.buildStreamWriter();
@@ -93,6 +91,11 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
         stopContext.async(actor.close());
     }
 
+    @Override
+    public String getName()
+    {
+        return "create-topic";
+    }
 
     @Override
     protected void onActorStarted()
@@ -104,15 +107,15 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
     {
         final ActorFuture<Map<DirectBuffer, TopicInfo>> stateFuture = clusterTopicState.getPendingTopics();
 
-        actor.runOnCompletion(stateFuture, (desiredState, getDesiredStateError) ->
+        actor.runOnCompletion(stateFuture, (desiredState, error) ->
         {
-            if (getDesiredStateError == null)
+            if (error == null)
             {
                 checkDesiredState(desiredState);
             }
             else
             {
-                Loggers.ORCHESTRATION_LOGGER.error("Error in getting desired state.", getDesiredStateError);
+                LOG.error("Unable to fetch expected cluster topic state", error);
             }
         });
     }
@@ -121,15 +124,15 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
     {
         final ActorFuture<Map<DirectBuffer, List<PartitionInfo>>> queryFuture = topologyManager.query(this::computeCurrentState);
 
-        actor.runOnCompletion(queryFuture, (currentState, readTopologyError) ->
+        actor.runOnCompletion(queryFuture, (currentState, error) ->
         {
-            if (readTopologyError == null)
+            if (error == null)
             {
                 computeStateDifferences(desiredState, currentState);
             }
             else
             {
-                LOG.error("Error in reading topology.", readTopologyError);
+                LOG.error("Unable to compute current cluster topic state from topology", error);
             }
         });
     }
@@ -162,24 +165,19 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
         {
             final TopicInfo desiredTopic = desiredEntry.getValue();
 
-            final List<PartitionInfo> partitionInfos = currentState.get(desiredTopic.getTopicName());
-            final int currentPartitionCount = partitionInfos != null ? partitionInfos.size() : 0;
-            final int desiredPartitionCount = desiredTopic.getPartitionCount();
-            final int missingPartitions = desiredPartitionCount - currentPartitionCount;
+            final List<PartitionInfo> partitionInfos = currentState.getOrDefault(desiredTopic.getTopicNameBuffer(), Collections.emptyList());
+            final int missingPartitions = desiredTopic.getPartitionCount() - partitionInfos.size();
             if (missingPartitions > 0)
             {
-                LOG.debug("Creating {} partitions for topic {}", missingPartitions, desiredTopic);
+                LOG.debug("Creating {} partitions for topic {}", missingPartitions, desiredTopic.getTopicName());
                 for (int i = 0; i < missingPartitions; i++)
                 {
                     createPartition(desiredTopic);
                 }
-                // TODO no partitions or not enough for this topic so we create partitions requests
-                // we need Id generation for that
             }
             else
             {
-                LOG.debug("Enough partitions created. Current state equals to desired state. Writing Topic {} CREATED.",
-                    BufferUtil.bufferAsString(desiredTopic.getTopicName()));
+                LOG.debug("Requested partition count {} for topic {} reached", desiredTopic.getPartitionCount(), desiredTopic.getTopicName());
 
                 final TypedEvent<TopicEvent> readEvent = streamReader.readValue(desiredTopic.getCreateEventPosition(), TopicEvent.class);
                 final TopicEvent topicEvent = readEvent.getValue();
@@ -193,15 +191,15 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
     private void createPartition(final TopicInfo topicInfo)
     {
         final ActorFuture<Integer> idFuture = idGenerator.nextId();
-        actor.runOnCompletion(idFuture, (id, throwable) -> {
-            if (throwable == null)
+        actor.runOnCompletion(idFuture, (id, error) -> {
+            if (error == null)
             {
-                LOG.debug("Creating partition with id {} for topic {}", id, topicInfo);
+                LOG.debug("Creating partition with id {} for topic {}", id, topicInfo.getTopicName());
                 sendCreatePartitionRequest(topicInfo, id);
             }
             else
             {
-                LOG.error("Failed to get new partition for topic {}", topicInfo, throwable);
+                LOG.error("Failed to get new partition id for topic {}", topicInfo.getTopicName(), error);
             }
         });
     }
@@ -210,45 +208,48 @@ public class TopicCreationReviserService extends Actor implements Service<Void>
     {
         final ActorFuture<NodeInfo> nextSocketAddressFuture = nodeOrchestratingService.getNextSocketAddress(null);
 
-        actor.runOnCompletion(nextSocketAddressFuture, (nodeInfo, throwable) ->
+        actor.runOnCompletion(nextSocketAddressFuture, (nodeInfo, error) ->
         {
-            if (throwable == null)
+            if (error == null)
             {
-                LOG.debug("Got next node {} to send create partition request.", nodeInfo);
-
-
-                final CreatePartitionRequest request = new CreatePartitionRequest()
-                    .topicName(topicInfo.getTopicName())
-                    .partitionId(partitionId)
-                    .replicationFactor(topicInfo.getReplicationFactor());
-
-                final RemoteAddress remoteAddress = clientTransport.registerRemoteAddress(nodeInfo.getManagementApiAddress());
-                final ActorFuture<ClientResponse> responseFuture = clientTransport.getOutput().sendRequest(remoteAddress, request);
-
-                actor.runOnCompletion(responseFuture, (createPartitionResponse, createPartitionError) ->
-                {
-                    if (createPartitionError != null)
-                    {
-                        LOG.error("Error while creating partition {}", partitionId, createPartitionError);
-                    }
-                    else
-                    {
-                        LOG.debug("Partition created");
-                    }
-                });
+                LOG.debug("Send create partition request for topic {} to node {} with partition id {}", topicInfo.getTopicName(), nodeInfo.getManagementApiAddress(), partitionId);
+                sendCreatePartitionRequest(topicInfo, partitionId, nodeInfo);
             }
             else
             {
-                LOG.error("Problem in resolving next node address to send partition create request.", throwable);
+                LOG.error("Problem in resolving next node address to create partition {} for topic {}", partitionId, topicInfo.getTopicName(), error);
             }
         });
 
     }
 
-    @Override
-    public Void get()
+    private void sendCreatePartitionRequest(final TopicInfo topicInfo, final Integer partitionId, final NodeInfo nodeInfo)
     {
-        return null;
+        final CreatePartitionRequest request = new CreatePartitionRequest()
+            .topicName(topicInfo.getTopicNameBuffer())
+            .partitionId(partitionId)
+            .replicationFactor(topicInfo.getReplicationFactor());
+
+        final RemoteAddress remoteAddress = clientTransport.registerRemoteAddress(nodeInfo.getManagementApiAddress());
+        final ActorFuture<ClientResponse> responseFuture = clientTransport.getOutput().sendRequest(remoteAddress, request);
+
+        actor.runOnCompletion(responseFuture, (createPartitionResponse, error) ->
+        {
+            if (error == null)
+            {
+                LOG.info("Partition {} for topic {} created on node {}", partitionId, topicInfo.getTopicName(), nodeInfo.getManagementApiAddress());
+            }
+            else
+            {
+                LOG.warn("Failed to create partition {} for topic {} on node {}", partitionId, topicInfo.getTopicName(), nodeInfo.getManagementApiAddress(), error);
+            }
+        });
+    }
+
+    @Override
+    public TopicCreationReviserService get()
+    {
+        return this;
     }
 
     public Injector<ClusterTopicState> getStateInjector()

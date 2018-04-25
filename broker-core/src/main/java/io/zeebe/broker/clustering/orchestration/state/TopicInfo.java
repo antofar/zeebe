@@ -28,8 +28,8 @@ import java.util.Set;
 public class TopicInfo
 {
 
-    private final DirectBuffer topicName;
-    private final String topicNameString;
+    private final DirectBuffer topicNameBuffer;
+    private final String topicName;
     private final long createEventPosition;
     private final int partitionCount;
     private final int replicationFactor;
@@ -37,18 +37,24 @@ public class TopicInfo
 
     public TopicInfo(long position, final TopicEvent event)
     {
-        this.topicName = BufferUtil.cloneBuffer(event.getName());
-        this.topicNameString = BufferUtil.bufferAsString(event.getName());
+        this.topicNameBuffer = BufferUtil.cloneBuffer(event.getName());
+        this.topicName = BufferUtil.bufferAsString(event.getName());
         this.createEventPosition = position;
         this.partitionCount = event.getPartitions();
         this.replicationFactor = event.getReplicationFactor();
         event.getPartitionIds().forEach(id -> partitionIds.add(id.getValue()));
     }
 
-    public DirectBuffer getTopicName()
+    public String getTopicName()
     {
         return topicName;
     }
+
+    public DirectBuffer getTopicNameBuffer()
+    {
+        return topicNameBuffer;
+    }
+
 
     public int getPartitionCount()
     {
@@ -65,10 +71,9 @@ public class TopicInfo
         return partitionIds;
     }
 
-    public TopicInfo addPartitionId(final int partitionId)
+    public void update(final TopicInfo topicInfo)
     {
-        partitionIds.add(partitionId);
-        return this;
+        partitionIds = topicInfo.partitionIds;
     }
 
     public long getCreateEventPosition()
@@ -88,23 +93,18 @@ public class TopicInfo
             return false;
         }
         final TopicInfo topicInfo = (TopicInfo) o;
-        return partitionCount == topicInfo.partitionCount && replicationFactor == topicInfo.replicationFactor && topicName.equals(topicName);
+        return partitionCount == topicInfo.partitionCount && replicationFactor == topicInfo.replicationFactor && topicNameBuffer.equals(topicNameBuffer);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(topicName, partitionCount, replicationFactor);
+        return Objects.hash(topicNameBuffer, partitionCount, replicationFactor);
     }
 
     @Override
     public String toString()
     {
-        return "TopicInfo{" + "topicName=" + topicNameString + ", partitionCount=" + partitionCount + ", replicationFactor=" + replicationFactor + ", partitionIds=" + partitionIds + '}';
-    }
-
-    public void update(final TopicInfo topicInfo)
-    {
-        partitionIds = topicInfo.partitionIds;
+        return "TopicInfo{" + "topicName=" + topicName + ", partitionCount=" + partitionCount + ", replicationFactor=" + replicationFactor + ", partitionIds=" + partitionIds + '}';
     }
 }

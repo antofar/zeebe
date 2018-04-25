@@ -69,12 +69,12 @@ public class ClusterTopicState implements Service<ClusterTopicState>, StreamProc
     private void updateTopicState(final TopicInfo topicInfo)
     {
         LOG.debug("Adding topic state: {}", topicInfo);
-        topicState.put(topicInfo.getTopicName(), topicInfo);
+        topicState.put(topicInfo.getTopicNameBuffer(), topicInfo);
     }
 
     private void completeTopicCreation(final TopicInfo topicInfo)
     {
-        final TopicInfo completedTopic = topicState.get(topicInfo.getTopicName());
+        final TopicInfo completedTopic = topicState.get(topicInfo.getTopicNameBuffer());
 
         if (completedTopic != null)
         {
