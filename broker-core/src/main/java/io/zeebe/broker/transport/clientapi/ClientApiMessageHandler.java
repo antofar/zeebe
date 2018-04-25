@@ -62,7 +62,7 @@ public class ClientApiMessageHandler implements ServerMessageHandler, ServerRequ
     protected final Dispatcher controlMessageDispatcher;
     protected final ClaimedFragment claimedControlMessageFragment = new ClaimedFragment();
 
-    protected final EnumMap<EventType, UnpackedObject> eventsByType = new EnumMap<>(EventType.class);
+    protected final EnumMap<ValueType, UnpackedObject> recordsByType = new EnumMap<>(ValueType.class);
 
     public ClientApiMessageHandler(final Dispatcher controlMessageDispatcher)
     {
@@ -73,12 +73,12 @@ public class ClientApiMessageHandler implements ServerMessageHandler, ServerRequ
 
     private void initEventTypeMap()
     {
-        eventsByType.put(EventType.DEPLOYMENT_EVENT, new DeploymentEvent());
-        eventsByType.put(EventType.TASK_EVENT, new TaskEvent());
-        eventsByType.put(EventType.WORKFLOW_INSTANCE_EVENT, new WorkflowInstanceEvent());
-        eventsByType.put(EventType.SUBSCRIBER_EVENT, new TopicSubscriberEvent());
-        eventsByType.put(EventType.SUBSCRIPTION_EVENT, new TopicSubscriptionEvent());
-        eventsByType.put(EventType.TOPIC_EVENT, new TopicEvent());
+        recordsByType.put(ValueType.DEPLOYMENT, new DeploymentEvent());
+        recordsByType.put(ValueType.TASK, new TaskEvent());
+        recordsByType.put(ValueType.WORKFLOW_INSTANCE, new WorkflowInstanceEvent());
+        recordsByType.put(ValueType.SUBSCRIBER, new TopicSubscriberEvent());
+        recordsByType.put(ValueType.SUBSCRIPTION, new TopicSubscriptionEvent());
+        recordsByType.put(ValueType.TOPIC, new TopicEvent());
     }
 
     private boolean handleExecuteCommandRequest(
@@ -105,8 +105,9 @@ public class ClientApiMessageHandler implements ServerMessageHandler, ServerRequ
                 .tryWriteResponseOrLogFailure(output, requestAddress.getStreamId(), requestId);
         }
 
-        final EventType eventType = executeCommandRequestDecoder.eventType();
-        final UnpackedObject event = eventsByType.get(eventType);
+        final ValueType eventType = executeCommandRequestDecoder.valueType();
+        final Intent intent = executeCommandRequestDecoder.intent();
+        final UnpackedObject event = recordsByType.get(eventType);
 
         if (event == null)
         {
@@ -116,8 +117,8 @@ public class ClientApiMessageHandler implements ServerMessageHandler, ServerRequ
                     .tryWriteResponseOrLogFailure(output, requestAddress.getStreamId(), requestId);
         }
 
-        final int eventOffset = executeCommandRequestDecoder.limit() + ExecuteCommandRequestDecoder.commandHeaderLength();
-        final int eventLength = executeCommandRequestDecoder.commandLength();
+        final int eventOffset = executeCommandRequestDecoder.limit() + ExecuteCommandRequestDecoder.valueHeaderLength();
+        final int eventLength = executeCommandRequestDecoder.valueLength();
 
         event.reset();
 
@@ -134,6 +135,8 @@ public class ClientApiMessageHandler implements ServerMessageHandler, ServerRequ
                     .tryWriteResponseOrLogFailure(output, requestAddress.getStreamId(), requestId);
         }
 
+        eventMetadata.recordType(RecordType.COMMAND);
+        eventMetadata.intent(intent);
         eventMetadata.valueType(eventType);
 
         logStreamWriter.wrap(partition.getLogStream());
