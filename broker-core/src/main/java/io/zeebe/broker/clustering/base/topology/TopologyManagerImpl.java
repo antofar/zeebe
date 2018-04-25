@@ -129,15 +129,17 @@ public class TopologyManagerImpl extends Actor implements TopologyManager, RaftS
     @Override
     public void onStateChange(Raft raft, RaftState raftState)
     {
-        final NodeInfo memberInfo = topology.getLocal();
+        actor.run(() -> {
+            final NodeInfo memberInfo = topology.getLocal();
 
-        updatePartition(raft.getPartitionId(),
-            raft.getTopicName(),
-            raft.getReplicationFactor(),
-            memberInfo,
-            raft.getState());
+            updatePartition(raft.getPartitionId(),
+                raft.getTopicName(),
+                raft.getReplicationFactor(),
+                memberInfo,
+                raft.getState());
 
-        publishLocalPartitions();
+            publishLocalPartitions();
+        });
     }
 
     private class ContactPointsChangeListener implements GossipCustomEventListener
