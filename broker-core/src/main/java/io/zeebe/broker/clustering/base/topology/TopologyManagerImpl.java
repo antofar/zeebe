@@ -109,7 +109,7 @@ public class TopologyManagerImpl extends Actor implements TopologyManager, RaftS
             member,
             raftState);
 
-        notifyPartitionUpdated(updatedPartition);
+        notifyPartitionUpdated(updatedPartition, member);
     }
 
     public void onRaftRemoved(Raft raft)
@@ -319,7 +319,21 @@ public class TopologyManagerImpl extends Actor implements TopologyManager, RaftS
             topologyPartitionListers.add(listener);
 
             // notify initially
-            topology.getPartitions().forEach((p) -> LogUtil.catchAndLog(LOG, () -> listener.onPartitionUpdated(p, topology)));
+            topology.getPartitions().forEach((p) -> LogUtil.catchAndLog(LOG, () ->
+            {
+                final NodeInfo leader = topology.getLeader(p.getPartitionId());
+                if (leader != null)
+                {
+                    listener.onPartitionUpdated(p, leader);
+                }
+
+
+                final List<NodeInfo> followers = topology.getFollowers(p.getPartitionId());
+                if (followers != null && !followers.isEmpty())
+                {
+                    followers.forEach(follower -> listener.onPartitionUpdated(p, follower));
+                }
+            }));
         });
     }
 
@@ -348,11 +362,11 @@ public class TopologyManagerImpl extends Actor implements TopologyManager, RaftS
         }
     }
 
-    private void notifyPartitionUpdated(PartitionInfo partitionInfo)
+    private void notifyPartitionUpdated(PartitionInfo partitionInfo, NodeInfo member)
     {
         for (TopologyPartitionListener listener : topologyPartitionListers)
         {
-            LogUtil.catchAndLog(LOG, () -> listener.onPartitionUpdated(partitionInfo, topology));
+            LogUtil.catchAndLog(LOG, () -> listener.onPartitionUpdated(partitionInfo, member));
         }
     }
 

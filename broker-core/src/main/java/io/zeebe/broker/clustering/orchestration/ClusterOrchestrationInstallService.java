@@ -1,12 +1,6 @@
 package io.zeebe.broker.clustering.orchestration;
 
-import static io.zeebe.broker.clustering.orchestration.ClusterOrchestrationLayerSerivceNames.*;
-import static io.zeebe.broker.logstreams.LogStreamServiceNames.STREAM_PROCESSOR_SERVICE_FACTORY;
-import static io.zeebe.broker.transport.TransportServiceNames.CLIENT_API_SERVER_NAME;
-import static io.zeebe.broker.transport.TransportServiceNames.serverTransport;
-
 import io.zeebe.broker.Loggers;
-import io.zeebe.broker.clustering.base.ClusterBaseLayerServiceNames;
 import io.zeebe.broker.clustering.base.partitions.Partition;
 import io.zeebe.broker.clustering.orchestration.id.IdGenerator;
 import io.zeebe.broker.clustering.orchestration.state.ClusterTopicState;
@@ -15,6 +9,12 @@ import io.zeebe.servicecontainer.*;
 import io.zeebe.transport.ServerOutput;
 import io.zeebe.transport.ServerTransport;
 import org.slf4j.Logger;
+
+import static io.zeebe.broker.clustering.base.ClusterBaseLayerServiceNames.TOPOLOGY_MANAGER_SERVICE;
+import static io.zeebe.broker.clustering.orchestration.ClusterOrchestrationLayerSerivceNames.*;
+import static io.zeebe.broker.logstreams.LogStreamServiceNames.STREAM_PROCESSOR_SERVICE_FACTORY;
+import static io.zeebe.broker.transport.TransportServiceNames.CLIENT_API_SERVER_NAME;
+import static io.zeebe.broker.transport.TransportServiceNames.serverTransport;
 
 public class ClusterOrchestrationInstallService implements Service<Void>
 {
@@ -64,13 +64,18 @@ public class ClusterOrchestrationInstallService implements Service<Void>
         final TopicCreationReviserService topicCreationReviserService = new TopicCreationReviserService();
         compositeInstall.createService(TOPIC_CREATION_REVISER_SERVICE_NAME, topicCreationReviserService)
                         .dependency(CLUSTER_TOPIC_STATE_SERVICE_NAME, topicCreationReviserService.getStateInjector())
-                        .dependency(ClusterBaseLayerServiceNames.TOPOLOGY_MANAGER_SERVICE, topicCreationReviserService.getTopologyManagerInjector())
+                        .dependency(TOPOLOGY_MANAGER_SERVICE, topicCreationReviserService.getTopologyManagerInjector())
                         .dependency(partitionServiceName, topicCreationReviserService.getLeaderSystemPartitionInjector())
                         .dependency(ID_GENERATOR_SERVICE_NAME, topicCreationReviserService.getIdGeneratorInjector())
                         .install();
 
         compositeInstall.createService(REQUEST_PARTITIONS_MESSAGE_HANDLER_SERVICE_NAME, requestPartitionsMessageHandler)
                         .dependency(CLUSTER_TOPIC_STATE_SERVICE_NAME, requestPartitionsMessageHandler.getClusterTopicStateInjector())
+                        .install();
+
+        final NodeOrchestratingService nodeOrchestratingService = new NodeOrchestratingService();
+        compositeInstall.createService(NODE_ORCHESTRATING_SERVICE_NAME, nodeOrchestratingService)
+                        .dependency(TOPOLOGY_MANAGER_SERVICE, nodeOrchestratingService.getTopologyManagerInjector())
                         .install();
 
         compositeInstall.install();
