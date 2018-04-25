@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -43,7 +44,7 @@ public class CreateTopicTest
 
     public EmbeddedBrokerRule brokerRule = new EmbeddedBrokerRule();
 
-    public ClientRule clientRule = new ClientRule(false);
+    public ClientRule clientRule = new ClientRule(true);
 
     @Rule
     public RuleChain ruleChain = RuleChain
@@ -73,43 +74,45 @@ public class CreateTopicTest
     public void shouldCreateMultipleTopicsInParallel() throws Exception
     {
         // given
-        final TopicsClient topics = clientRule.topics();
+        final TopicsClient client = clientRule.topics();
 
         // when
-        final Future<Event> foo = topics.create("foo", 2).executeAsync();
-        final Future<Event> bar = topics.create("bar", 2).executeAsync();
+        final Future<Event> foo = client.create("foo", 2).executeAsync();
+        final Future<Event> bar = client.create("bar", 2).executeAsync();
 
         // then
-        assertThat(bar.get(10, TimeUnit.SECONDS).getState()).isEqualTo("CREATED");
-        assertThat(foo.get(10, TimeUnit.SECONDS).getState()).isEqualTo("CREATED");
+        assertThat(bar.get(10, TimeUnit.SECONDS).getState()).isEqualTo("CREATING");
+        assertThat(foo.get(10, TimeUnit.SECONDS).getState()).isEqualTo("CREATING");
+
+        // when
+        clientRule.waitUntilTopicsExists("foo", "bar");
+
+        // then
+        final Topics topics = client.getTopics().execute();
+
+        final Optional<Topic> fooTopic = topics.getTopics().stream().filter(t -> t.getName().equals("foo")).findFirst();
+        assertThat(fooTopic).hasValueSatisfying(t -> assertThat(t.getPartitions()).hasSize(2));
+
+        final Optional<Topic> barTopic = topics.getTopics().stream().filter(t -> t.getName().equals("bar")).findFirst();
+        assertThat(barTopic).hasValueSatisfying(t -> assertThat(t.getPartitions()).hasSize(2));
+
     }
 
     @Test
     public void shouldRequestTopics() throws InterruptedException
     {
         // given
-        final TopicsClient topics = clientRule.topics();
-        final Event topicEvent = topics.create("foo", 2).execute();
+        clientRule.topics().create("foo", 2).execute();
 
-        assertThat(topicEvent.getState()).isEqualTo("CREATING");
-
-        waitUntil(() ->
-            clientRule.getClient().topics().getTopics().execute().getTopics().size() >= 1
-        );
+        clientRule.waitUntilTopicsExists("foo");
 
         // when
-        final Topics returnedTopics = clientRule.topics().getTopics().execute();
+        final Map<String, List<Partition>> topics = clientRule.topicsByName();
 
         // then
-        assertThat(returnedTopics.getTopics()).hasSize(1);
-        final Map<String, List<Partition>> topicsByName =
-                returnedTopics.getTopics()
-                    .stream()
-                    .collect(Collectors.toMap(Topic::getName, Topic::getPartitions));
-
-        assertThat(topicsByName.get("foo")).hasSize(2);
-
-        Thread.sleep(2000);
+        assertThat(topics).hasSize(2);
+        assertThat(topics.get("foo")).hasSize(2);
+        assertThat(topics.get(clientRule.getDefaultTopic())).hasSize(1);
     }
 
 }
