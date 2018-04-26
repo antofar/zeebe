@@ -18,22 +18,20 @@
 package io.zeebe.broker.clustering.orchestration.topic;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import io.zeebe.broker.Loggers;
-import io.zeebe.broker.clustering.api.CreatePartitionRequest;
-import io.zeebe.broker.clustering.base.partitions.Partition;
+import io.zeebe.broker.clustering.api.InvitationRequest;
 import io.zeebe.broker.clustering.base.topology.NodeInfo;
 import io.zeebe.broker.clustering.base.topology.PartitionInfo;
 import io.zeebe.broker.clustering.base.topology.TopologyManager;
 import io.zeebe.broker.clustering.orchestration.NodeOrchestratingService;
-import io.zeebe.broker.clustering.orchestration.id.IdGenerator;
 import io.zeebe.broker.clustering.orchestration.state.ClusterTopicState;
 import io.zeebe.broker.clustering.orchestration.state.TopicInfo;
-import io.zeebe.broker.logstreams.processor.TypedEvent;
-import io.zeebe.broker.logstreams.processor.TypedStreamEnvironment;
-import io.zeebe.broker.logstreams.processor.TypedStreamReader;
-import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
 import io.zeebe.servicecontainer.Injector;
 import io.zeebe.servicecontainer.Service;
 import io.zeebe.servicecontainer.ServiceStartContext;
@@ -41,12 +39,13 @@ import io.zeebe.servicecontainer.ServiceStopContext;
 import io.zeebe.transport.ClientResponse;
 import io.zeebe.transport.ClientTransport;
 import io.zeebe.transport.RemoteAddress;
+import io.zeebe.transport.SocketAddress;
 import io.zeebe.util.sched.Actor;
 import io.zeebe.util.sched.future.ActorFuture;
 import org.agrona.DirectBuffer;
 import org.slf4j.Logger;
 
-public class TopicCreationReviserService extends Actor implements Service<TopicCreationReviserService>
+public class ReplicationFactorReviserService extends Actor implements Service<ReplicationFactorReviserService>
 {
     private static final Logger LOG = Loggers.ORCHESTRATION_LOGGER;
 
@@ -55,36 +54,25 @@ public class TopicCreationReviserService extends Actor implements Service<TopicC
 
     private final Injector<ClusterTopicState> stateInjector = new Injector<>();
     private final Injector<TopologyManager> topologyManagerInjector = new Injector<>();
-    private final Injector<Partition> leaderSystemPartitionInjector = new Injector<>();
-    private final Injector<IdGenerator> idGeneratorInjector = new Injector<>();
     private final Injector<NodeOrchestratingService> nodeOrchestratingServiceInjector = new Injector<>();
     private final Injector<ClientTransport> managementClientApiInjector = new Injector<>();
 
     private ClusterTopicState clusterTopicState;
     private TopologyManager topologyManager;
-    private TypedStreamReader streamReader;
-    private TypedStreamWriter streamWriter;
-    private IdGenerator idGenerator;
     private NodeOrchestratingService nodeOrchestratingService;
     private ClientTransport clientTransport;
 
-    private Set<TopicInfo> pendingTopicCreation;
+    private Set<Integer> pendingInvitations;
 
     @Override
     public void start(final ServiceStartContext startContext)
     {
         clusterTopicState = stateInjector.getValue();
         topologyManager = topologyManagerInjector.getValue();
-        idGenerator = idGeneratorInjector.getValue();
         nodeOrchestratingService = nodeOrchestratingServiceInjector.getValue();
         clientTransport = managementClientApiInjector.getValue();
 
-        final Partition leaderSystemPartition = leaderSystemPartitionInjector.getValue();
-        final TypedStreamEnvironment typedStreamEnvironment = new TypedStreamEnvironment(leaderSystemPartition.getLogStream(), null);
-        streamReader = typedStreamEnvironment.buildStreamReader();
-        streamWriter = typedStreamEnvironment.buildStreamWriter();
-
-        pendingTopicCreation = new HashSet<>();
+        pendingInvitations = new HashSet<>();
 
         startContext.async(startContext.getScheduler().submitActor(this));
     }
@@ -104,12 +92,12 @@ public class TopicCreationReviserService extends Actor implements Service<TopicC
     @Override
     protected void onActorStarted()
     {
-        actor.runAtFixedRate(TIMER_RATE, this::topicCreationRevising);
+        actor.runAtFixedRate(TIMER_RATE, this::replicationFactorRevising);
     }
 
-    private void topicCreationRevising()
+    private void replicationFactorRevising()
     {
-        final ActorFuture<Map<DirectBuffer, TopicInfo>> stateFuture = clusterTopicState.getPendingTopics();
+        final ActorFuture<Map<DirectBuffer, TopicInfo>> stateFuture = clusterTopicState.getDesiredState();
 
         actor.runOnCompletion(stateFuture, (desiredState, error) ->
         {
@@ -149,76 +137,57 @@ public class TopicCreationReviserService extends Actor implements Service<TopicC
         {
             final TopicInfo desiredTopic = desiredEntry.getValue();
             final List<PartitionNodes> listOfPartitionNodes = currentState.getPartitions(desiredTopic.getTopicNameBuffer());
-            final int missingPartitions = desiredTopic.getPartitionCount() - listOfPartitionNodes.size();
-            if (missingPartitions > 0)
+            for (final PartitionNodes partitionNode : listOfPartitionNodes)
             {
-                if (!pendingTopicCreation.contains(desiredTopic))
+                final int missingReplications = partitionNode.getPartitionInfo().getReplicationFactor() - partitionNode.getNodes().size();
+                if (missingReplications > 0)
                 {
-                    LOG.debug("Creating {} partitions for topic {}", missingPartitions, desiredTopic.getTopicName());
-                    for (int i = 0; i < missingPartitions; i++)
+                    final int partitionId = partitionNode.getPartitionId();
+                    if (!pendingInvitations.contains(partitionId))
                     {
-                        createPartition(desiredTopic);
+                        LOG.debug("Inviting {} members for partition {}", missingReplications, partitionNode.getPartitionInfo());
+                        for (int i = 0; i < missingReplications; i++)
+                        {
+                            inviteMember(partitionNode);
+                        }
+                        pendingInvitations.add(partitionId);
+                        actor.runDelayed(PENDING_TOPIC_CREATION_TIMEOUT, () -> pendingInvitations.remove(partitionId));
                     }
-                    pendingTopicCreation.add(desiredTopic);
-                    actor.runDelayed(PENDING_TOPIC_CREATION_TIMEOUT, () -> pendingTopicCreation.remove(desiredTopic));
                 }
-            }
-            else
-            {
-                LOG.debug("Requested partition count {} for topic {} reached", desiredTopic.getPartitionCount(), desiredTopic.getTopicName());
-
-                final TypedEvent<TopicEvent> readEvent = streamReader.readValue(desiredTopic.getCreateEventPosition(), TopicEvent.class);
-                final TopicEvent topicEvent = readEvent.getValue();
-                listOfPartitionNodes.forEach(partitionNodes -> topicEvent.getPartitionIds().add().setValue(partitionNodes.getPartitionId()));
-                topicEvent.setState(TopicState.CREATED);
-                streamWriter.writeFollowupEvent(readEvent.getKey(), topicEvent);
-
-                pendingTopicCreation.remove(desiredTopic);
             }
         }
     }
 
-    private void createPartition(final TopicInfo topicInfo)
+    private void inviteMember(final PartitionNodes partitionNodes)
     {
-        final ActorFuture<Integer> idFuture = idGenerator.nextId();
-        actor.runOnCompletion(idFuture, (id, error) -> {
-            if (error == null)
-            {
-                LOG.debug("Creating partition with id {} for topic {}", id, topicInfo.getTopicName());
-                sendCreatePartitionRequest(topicInfo, id);
-            }
-            else
-            {
-                LOG.error("Failed to get new partition id for topic {}", topicInfo.getTopicName(), error);
-            }
-        });
-    }
-
-    private void sendCreatePartitionRequest(final TopicInfo topicInfo, final Integer partitionId)
-    {
-        final PartitionInfo newPartition = new PartitionInfo(topicInfo.getTopicNameBuffer(), partitionId, topicInfo.getReplicationFactor());
-        final ActorFuture<NodeInfo> nextSocketAddressFuture = nodeOrchestratingService.getNextSocketAddress(newPartition);
+        final ActorFuture<NodeInfo> nextSocketAddressFuture = nodeOrchestratingService.getNextSocketAddress(partitionNodes.getPartitionInfo());
         actor.runOnCompletion(nextSocketAddressFuture, (nodeInfo, error) ->
         {
             if (error == null)
             {
-                LOG.debug("Send create partition request for topic {} to node {} with partition id {}", topicInfo.getTopicName(), nodeInfo.getManagementApiAddress(), partitionId);
-                sendCreatePartitionRequest(topicInfo, partitionId, nodeInfo);
+                LOG.debug("Send invite request for partition {} to node {}", partitionNodes.getPartitionInfo(), nodeInfo.getManagementApiAddress());
+                sendInvitationRequest(partitionNodes, nodeInfo);
             }
             else
             {
-                LOG.error("Problem in resolving next node address to create partition {} for topic {}", partitionId, topicInfo.getTopicName(), error);
+                LOG.error("Problem in resolving next node address to invite for partition {}", partitionNodes.getPartitionInfo());
             }
         });
 
     }
 
-    private void sendCreatePartitionRequest(final TopicInfo topicInfo, final Integer partitionId, final NodeInfo nodeInfo)
+    private void sendInvitationRequest(final PartitionNodes partitionNodes, final NodeInfo nodeInfo)
     {
-        final CreatePartitionRequest request = new CreatePartitionRequest()
-            .topicName(topicInfo.getTopicNameBuffer())
-            .partitionId(partitionId)
-            .replicationFactor(topicInfo.getReplicationFactor());
+        final PartitionInfo partitionInfo = partitionNodes.getPartitionInfo();
+        final List<SocketAddress> members = partitionNodes.getNodes().stream()
+                                                          .map(NodeInfo::getReplicationApiAddress)
+                                                          .collect(Collectors.toList());
+
+        final InvitationRequest request = new InvitationRequest()
+            .topicName(partitionInfo.getTopicName())
+            .partitionId(partitionInfo.getPartitionId())
+            .replicationFactor(partitionInfo.getReplicationFactor())
+            .members(members);
 
         final RemoteAddress remoteAddress = clientTransport.registerRemoteAddress(nodeInfo.getManagementApiAddress());
         final ActorFuture<ClientResponse> responseFuture = clientTransport.getOutput().sendRequest(remoteAddress, request);
@@ -227,17 +196,17 @@ public class TopicCreationReviserService extends Actor implements Service<TopicC
         {
             if (error == null)
             {
-                LOG.info("Partition {} for topic {} created on node {}", partitionId, topicInfo.getTopicName(), nodeInfo.getManagementApiAddress());
+                LOG.info("Member {} successfully invited to partition {}", nodeInfo.getManagementApiAddress(), partitionInfo);
             }
             else
             {
-                LOG.warn("Failed to create partition {} for topic {} on node {}", partitionId, topicInfo.getTopicName(), nodeInfo.getManagementApiAddress(), error);
+                LOG.warn("Failed to invite node {} to partition {}", nodeInfo.getManagementApiAddress(), partitionInfo, error);
             }
         });
     }
 
     @Override
-    public TopicCreationReviserService get()
+    public ReplicationFactorReviserService get()
     {
         return this;
     }
@@ -250,16 +219,6 @@ public class TopicCreationReviserService extends Actor implements Service<TopicC
     public Injector<TopologyManager> getTopologyManagerInjector()
     {
         return topologyManagerInjector;
-    }
-
-    public Injector<Partition> getLeaderSystemPartitionInjector()
-    {
-        return leaderSystemPartitionInjector;
-    }
-
-    public Injector<IdGenerator> getIdGeneratorInjector()
-    {
-        return idGeneratorInjector;
     }
 
     public Injector<NodeOrchestratingService> getNodeOrchestratingServiceInjector()

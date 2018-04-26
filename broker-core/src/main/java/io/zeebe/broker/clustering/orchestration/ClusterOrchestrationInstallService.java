@@ -21,6 +21,7 @@ import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.base.partitions.Partition;
 import io.zeebe.broker.clustering.orchestration.id.IdGenerator;
 import io.zeebe.broker.clustering.orchestration.state.ClusterTopicState;
+import io.zeebe.broker.clustering.orchestration.topic.ReplicationFactorReviserService;
 import io.zeebe.broker.clustering.orchestration.topic.RequestPartitionsMessageHandler;
 import io.zeebe.broker.clustering.orchestration.topic.TopicCreationReviserService;
 import io.zeebe.broker.transport.TransportServiceNames;
@@ -93,7 +94,15 @@ public class ClusterOrchestrationInstallService implements Service<Void>
                         .dependency(partitionServiceName, topicCreationReviserService.getLeaderSystemPartitionInjector())
                         .dependency(ID_GENERATOR_SERVICE_NAME, topicCreationReviserService.getIdGeneratorInjector())
                         .dependency(NODE_ORCHESTRATING_SERVICE_NAME, topicCreationReviserService.getNodeOrchestratingServiceInjector())
-                        .dependency(TransportServiceNames.clientTransport(TransportServiceNames.MANAGEMENT_API_CLIENT_NAME), topicCreationReviserService.getManagmentClientApiInjector())
+                        .dependency(TransportServiceNames.clientTransport(TransportServiceNames.MANAGEMENT_API_CLIENT_NAME), topicCreationReviserService.getManagementClientApiInjector())
+                        .install();
+
+        final ReplicationFactorReviserService replicationFactorReviserService = new ReplicationFactorReviserService();
+        compositeInstall.createService(REPLICATION_FACTOR_REVISER_SERVICE_SERVICE_NAME, replicationFactorReviserService)
+                        .dependency(CLUSTER_TOPIC_STATE_SERVICE_NAME, replicationFactorReviserService.getStateInjector())
+                        .dependency(TOPOLOGY_MANAGER_SERVICE, replicationFactorReviserService.getTopologyManagerInjector())
+                        .dependency(NODE_ORCHESTRATING_SERVICE_NAME, replicationFactorReviserService.getNodeOrchestratingServiceInjector())
+                        .dependency(TransportServiceNames.clientTransport(TransportServiceNames.MANAGEMENT_API_CLIENT_NAME), replicationFactorReviserService.getManagementClientApiInjector())
                         .install();
 
         compositeInstall.createService(REQUEST_PARTITIONS_MESSAGE_HANDLER_SERVICE_NAME, requestPartitionsMessageHandler)
