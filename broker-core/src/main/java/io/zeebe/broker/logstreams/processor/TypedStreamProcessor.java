@@ -29,8 +29,6 @@ import io.zeebe.logstreams.processor.StreamProcessor;
 import io.zeebe.logstreams.processor.StreamProcessorContext;
 import io.zeebe.logstreams.spi.SnapshotSupport;
 import io.zeebe.msgpack.UnpackedObject;
-import io.zeebe.protocol.clientapi.Intent;
-import io.zeebe.protocol.clientapi.RecordType;
 import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.transport.ServerOutput;
@@ -69,10 +67,7 @@ public class TypedStreamProcessor implements StreamProcessor
         this.snapshotSupport = snapshotSupport;
         this.output = output;
         this.eventProcessors = eventProcessors;
-        eventProcessors.values()
-            .stream()
-            .flatMap(m -> m.values().stream())
-            .forEach(p -> this.lifecycleListeners.addAll(p.values()));
+        eventProcessors.values().forEachRemaining(p -> this.lifecycleListeners.add(p));
 
         this.lifecycleListeners.addAll(lifecycleListeners);
 

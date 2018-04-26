@@ -1,5 +1,7 @@
 package io.zeebe.broker.logstreams.processor;
 
+import java.util.Iterator;
+
 @SuppressWarnings({ "unchecked", "rawtypes" })
 public class FlatEnumMap<V>
 {
@@ -7,6 +9,8 @@ public class FlatEnumMap<V>
 
     private final int enum2Cardinality;
     private final int enum3Cardinality;
+
+    private final ValueIterator valueIt = new ValueIterator();
 
     public <R extends Enum<R>, S extends Enum<S>, T extends Enum<T>> FlatEnumMap(
             Class<R> enum1,
@@ -47,4 +51,47 @@ public class FlatEnumMap<V>
         return (key1.ordinal() * enum2Cardinality * enum3Cardinality) + (key2.ordinal() * enum3Cardinality);
     }
 
+    /**
+     * BEWARE: does not detect concurrent modifications and behaves incorrectly in this case
+     */
+    public Iterator<V> values()
+    {
+        valueIt.init();
+        return valueIt;
+    }
+
+    private class ValueIterator implements Iterator<V>
+    {
+        private int next;
+
+        private void scanToNext()
+        {
+            do
+            {
+                next++;
+            }
+            while (elements[next] == null && next < elements.length);
+        }
+
+        public void init()
+        {
+            next = -1;
+            scanToNext();
+        }
+
+        @Override
+        public boolean hasNext()
+        {
+            return next < elements.length;
+        }
+
+        @Override
+        public V next()
+        {
+            final V element = (V) elements[next];
+            scanToNext();
+            return element;
+        }
+
+    }
 }
