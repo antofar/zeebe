@@ -19,169 +19,145 @@ package io.zeebe.broker.workflow.processor;
 
 import static io.zeebe.broker.util.PayloadUtil.isNilPayload;
 import static io.zeebe.broker.util.PayloadUtil.isValidPayload;
-import static io.zeebe.protocol.clientapi.EventType.TASK_EVENT;
-import static io.zeebe.protocol.clientapi.EventType.WORKFLOW_INSTANCE_EVENT;
 
-import java.util.*;
+import java.util.EnumMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
 
-import io.zeebe.broker.incident.IncidentEventWriter;
+import org.agrona.DirectBuffer;
+import org.agrona.MutableDirectBuffer;
+import org.agrona.collections.LongArrayList;
+import org.agrona.concurrent.UnsafeBuffer;
+
 import io.zeebe.broker.incident.data.ErrorType;
 import io.zeebe.broker.incident.data.IncidentEvent;
-import io.zeebe.broker.logstreams.processor.MetadataFilter;
+import io.zeebe.broker.logstreams.processor.StreamProcessorLifecycleAware;
 import io.zeebe.broker.logstreams.processor.TypedBatchWriter;
 import io.zeebe.broker.logstreams.processor.TypedRecord;
 import io.zeebe.broker.logstreams.processor.TypedRecordProcessor;
 import io.zeebe.broker.logstreams.processor.TypedResponseWriter;
+import io.zeebe.broker.logstreams.processor.TypedStreamEnvironment;
 import io.zeebe.broker.logstreams.processor.TypedStreamProcessor;
 import io.zeebe.broker.logstreams.processor.TypedStreamReader;
 import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
 import io.zeebe.broker.system.deployment.handler.CreateWorkflowResponseSender;
 import io.zeebe.broker.task.data.TaskEvent;
 import io.zeebe.broker.task.data.TaskHeaders;
-import io.zeebe.broker.task.data.TaskState;
-import io.zeebe.broker.transport.clientapi.CommandResponseWriter;
-import io.zeebe.broker.workflow.data.*;
-import io.zeebe.broker.workflow.map.*;
+import io.zeebe.broker.workflow.data.WorkflowEvent;
+import io.zeebe.broker.workflow.data.WorkflowInstanceEvent;
+import io.zeebe.broker.workflow.map.ActivityInstanceMap;
 import io.zeebe.broker.workflow.map.DeployedWorkflow;
+import io.zeebe.broker.workflow.map.PayloadCache;
+import io.zeebe.broker.workflow.map.WorkflowDeploymentCache;
+import io.zeebe.broker.workflow.map.WorkflowInstanceIndex;
 import io.zeebe.broker.workflow.map.WorkflowInstanceIndex.WorkflowInstance;
-import io.zeebe.logstreams.log.*;
-import io.zeebe.logstreams.log.LogStreamBatchWriter.LogEntryBuilder;
-import io.zeebe.logstreams.processor.*;
-import io.zeebe.logstreams.snapshot.ComposedSnapshot;
-import io.zeebe.logstreams.spi.SnapshotSupport;
+import io.zeebe.logstreams.log.LogStream;
+import io.zeebe.logstreams.processor.StreamProcessorContext;
 import io.zeebe.model.bpmn.BpmnAspect;
-import io.zeebe.model.bpmn.instance.*;
-import io.zeebe.msgpack.el.*;
-import io.zeebe.msgpack.mapping.*;
-import io.zeebe.protocol.Protocol;
-import io.zeebe.protocol.clientapi.EventType;
+import io.zeebe.model.bpmn.instance.EndEvent;
+import io.zeebe.model.bpmn.instance.ExclusiveGateway;
+import io.zeebe.model.bpmn.instance.FlowElement;
+import io.zeebe.model.bpmn.instance.FlowNode;
+import io.zeebe.model.bpmn.instance.SequenceFlow;
+import io.zeebe.model.bpmn.instance.ServiceTask;
+import io.zeebe.model.bpmn.instance.StartEvent;
+import io.zeebe.model.bpmn.instance.TaskDefinition;
+import io.zeebe.model.bpmn.instance.Workflow;
+import io.zeebe.msgpack.el.CompiledJsonCondition;
+import io.zeebe.msgpack.el.JsonConditionException;
+import io.zeebe.msgpack.el.JsonConditionInterpreter;
+import io.zeebe.msgpack.mapping.Mapping;
+import io.zeebe.msgpack.mapping.MappingException;
+import io.zeebe.msgpack.mapping.MappingProcessor;
 import io.zeebe.protocol.clientapi.Intent;
-import io.zeebe.protocol.impl.RecordMetadata;
+import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.util.metrics.Metric;
 import io.zeebe.util.metrics.MetricsManager;
-import org.agrona.DirectBuffer;
-import org.agrona.MutableDirectBuffer;
-import org.agrona.collections.LongArrayList;
-import org.agrona.concurrent.UnsafeBuffer;
 
-public class WorkflowInstanceStreamProcessor2 implements StreamProcessor
+public class WorkflowInstanceStreamProcessor2 implements StreamProcessorLifecycleAware
 {
     private static final UnsafeBuffer EMPTY_TASK_TYPE = new UnsafeBuffer("".getBytes());
 
-    // processors ////////////////////////////////////
-    protected final WorkflowCreateEventProcessor workflowCreateEventProcessor = new WorkflowCreateEventProcessor();
-    protected final WorkflowDeleteEventProcessor workflowDeleteEventProcessor = new WorkflowDeleteEventProcessor();
+    private final Map<BpmnAspect, TypedRecordProcessor<WorkflowInstanceEvent>> aspectHandlers;
 
-    protected final CreateWorkflowInstanceEventProcessor createWorkflowInstanceEventProcessor = new CreateWorkflowInstanceEventProcessor();
-    protected final WorkflowInstanceCreatedEventProcessor workflowInstanceCreatedEventProcessor = new WorkflowInstanceCreatedEventProcessor();
-    protected final CancelWorkflowInstanceProcessor cancelWorkflowInstanceProcessor = new CancelWorkflowInstanceProcessor();
-
-    protected final EventProcessor updatePayloadProcessor = new UpdatePayloadProcessor();
-
-    protected final EventProcessor sequenceFlowTakenEventProcessor = new ActiveWorkflowInstanceProcessor(new SequenceFlowTakenEventProcessor());
-    protected final EventProcessor activityReadyEventProcessor = new ActiveWorkflowInstanceProcessor(new ActivityReadyEventProcessor());
-    protected final EventProcessor activityActivatedEventProcessor = new ActiveWorkflowInstanceProcessor(new ActivityActivatedEventProcessor());
-    protected final EventProcessor activityCompletingEventProcessor = new ActiveWorkflowInstanceProcessor(new ActivityCompletingEventProcessor());
-
-    protected final EventProcessor taskCompletedEventProcessor = new TaskCompletedEventProcessor();
-    protected final EventProcessor taskCreatedEventProcessor = new TaskCreatedProcessor();
-
-    protected final Map<BpmnAspect, EventProcessor> aspectHandlers;
-
-    protected Metric workflowInstanceEventCreate;
-    protected Metric workflowInstanceEventCanceled;
-    protected Metric workflowInstanceEventCompleted;
+    private Metric workflowInstanceEventCreate;
+    private Metric workflowInstanceEventCanceled;
+    private Metric workflowInstanceEventCompleted;
 
     {
         aspectHandlers = new EnumMap<>(BpmnAspect.class);
 
-        aspectHandlers.put(BpmnAspect.TAKE_SEQUENCE_FLOW, new ActiveWorkflowInstanceProcessor(new TakeSequenceFlowAspectHandler()));
-        aspectHandlers.put(BpmnAspect.CONSUME_TOKEN, new ActiveWorkflowInstanceProcessor(new ConsumeTokenAspectHandler()));
-        aspectHandlers.put(BpmnAspect.EXCLUSIVE_SPLIT, new ActiveWorkflowInstanceProcessor(new ExclusiveSplitAspectHandler()));
+        aspectHandlers.put(BpmnAspect.TAKE_SEQUENCE_FLOW, new TakeSequenceFlowAspectHandler());
+        aspectHandlers.put(BpmnAspect.CONSUME_TOKEN, new ConsumeTokenAspectHandler());
+        aspectHandlers.put(BpmnAspect.EXCLUSIVE_SPLIT, new ExclusiveSplitAspectHandler());
     }
 
-    // data //////////////////////////////////////////
+    private final WorkflowInstanceIndex workflowInstanceIndex = new WorkflowInstanceIndex();
+    private final ActivityInstanceMap activityInstanceMap = new ActivityInstanceMap();
+    private final WorkflowDeploymentCache workflowDeploymentCache;
+    private final PayloadCache payloadCache;
 
-    protected final RecordMetadata sourceEventMetadata = new RecordMetadata();
-    protected final RecordMetadata targetEventMetadata = new RecordMetadata();
+    private final MappingProcessor payloadMappingProcessor = new MappingProcessor(4096);
+    private final JsonConditionInterpreter conditionInterpreter = new JsonConditionInterpreter();
 
-    // internal //////////////////////////////////////
+    private final CreateWorkflowResponseSender workflowResponseSender;
 
-    protected final CommandResponseWriter responseWriter;
-
-    protected final WorkflowInstanceIndex workflowInstanceIndex;
-    protected final ActivityInstanceMap activityInstanceMap;
-    protected final WorkflowDeploymentCache workflowDeploymentCache;
-    protected final PayloadCache payloadCache;
-
-    protected final ComposedSnapshot composedSnapshot;
-
-    protected LogStreamReader logStreamReader;
-    protected LogStreamBatchWriter logStreamBatchWriter;
-    protected IncidentEventWriter incidentEventWriter;
-
-    protected int logStreamPartitionId;
-    protected int streamProcessorId;
-    protected long eventKey;
-    protected long eventPosition;
-
-    protected final MappingProcessor payloadMappingProcessor;
-    protected final JsonConditionInterpreter conditionInterpreter = new JsonConditionInterpreter();
-
-    protected final CreateWorkflowResponseSender workflowResponseSender;
-
-    protected LogStream logStream;
-
-    public WorkflowInstanceStreamProcessor(
-            CommandResponseWriter responseWriter,
+    public WorkflowInstanceStreamProcessor2(
             CreateWorkflowResponseSender createWorkflowResponseSender,
             int deploymentCacheSize,
             int payloadCacheSize)
     {
-        this.responseWriter = responseWriter;
-        this.logStreamReader = new BufferedLogStreamReader();
-
-        this.workflowDeploymentCache = new WorkflowDeploymentCache(deploymentCacheSize, logStreamReader);
-        this.payloadCache = new PayloadCache(payloadCacheSize, logStreamReader);
-
-        this.workflowInstanceIndex = new WorkflowInstanceIndex();
-        this.activityInstanceMap = new ActivityInstanceMap();
-
-        this.payloadMappingProcessor = new MappingProcessor(4096);
-
+        this.workflowDeploymentCache = new WorkflowDeploymentCache(deploymentCacheSize);
+        this.payloadCache = new PayloadCache(payloadCacheSize);
         this.workflowResponseSender = createWorkflowResponseSender;
+    }
 
-        this.composedSnapshot = new ComposedSnapshot(
-            workflowInstanceIndex.getSnapshotSupport(),
-            activityInstanceMap.getSnapshotSupport(),
-            workflowDeploymentCache.getIdVersionSnapshot(),
-            workflowDeploymentCache.getKeyPositionSnapshot(),
-            payloadCache.getSnapshotSupport());
+    public TypedStreamProcessor createStreamProcessor(TypedStreamEnvironment environment)
+    {
+        return environment.newStreamProcessor()
+            .onCommand(ValueType.WORKFLOW_INSTANCE, Intent.CREATE, new CreateWorkflowInstanceEventProcessor())
+            .onEvent(ValueType.WORKFLOW_INSTANCE, Intent.CREATED, new WorkflowInstanceCreatedEventProcessor())
+            .onCommand(ValueType.WORKFLOW_INSTANCE, Intent.CANCEL, new CancelWorkflowInstanceProcessor())
+            .onEvent(ValueType.WORKFLOW_INSTANCE, Intent.SEQUENCE_FLOW_TAKEN, w -> isActive(w.getWorkflowInstanceKey()), new SequenceFlowTakenEventProcessor())
+            .onEvent(ValueType.WORKFLOW_INSTANCE, Intent.ACTIVITY_READY, w -> isActive(w.getWorkflowInstanceKey()), new ActivityReadyEventProcessor())
+            .onEvent(ValueType.WORKFLOW_INSTANCE, Intent.ACTIVITY_ACTIVATED, w -> isActive(w.getWorkflowInstanceKey()), new ActivityActivatedEventProcessor())
+            .onEvent(ValueType.WORKFLOW_INSTANCE, Intent.ACTIVITY_COMPLETING, w -> isActive(w.getWorkflowInstanceKey()), new ActivityCompletingEventProcessor())
+            .onCommand(ValueType.WORKFLOW_INSTANCE, Intent.UPDATE_PAYLOAD, new UpdatePayloadProcessor())
+            .onEvent(ValueType.WORKFLOW_INSTANCE, Intent.START_EVENT_OCCURRED, this::getBpmnAspectHandler)
+            .onEvent(ValueType.WORKFLOW_INSTANCE, Intent.END_EVENT_OCCURRED, this::getBpmnAspectHandler)
+            .onEvent(ValueType.WORKFLOW_INSTANCE, Intent.GATEWAY_ACTIVATED, this::getBpmnAspectHandler)
+            .onEvent(ValueType.WORKFLOW_INSTANCE, Intent.ACTIVITY_COMPLETED, this::getBpmnAspectHandler)
+            .onEvent(ValueType.WORKFLOW_INSTANCE, Intent.CANCELED, (Consumer<WorkflowInstanceEvent>) (e) -> workflowInstanceEventCanceled.incrementOrdered())
+            .onEvent(ValueType.WORKFLOW_INSTANCE, Intent.COMPLETED, (Consumer<WorkflowInstanceEvent>) (e) -> workflowInstanceEventCompleted.incrementOrdered())
 
+            .onEvent(ValueType.TASK, Intent.CREATED, new TaskCreatedProcessor())
+            .onEvent(ValueType.TASK, Intent.COMPLETED, new TaskCompletedEventProcessor())
+
+            .onEvent(ValueType.WORKFLOW, Intent.CREATE, new WorkflowCreateEventProcessor())
+            .onEvent(ValueType.WORKFLOW, Intent.DELETE, new WorkflowDeleteEventProcessor())
+
+            .withStateResource(workflowInstanceIndex.getMap())
+            .withStateResource(activityInstanceMap.getMap())
+            .withStateResource(workflowDeploymentCache.getIdVersionToKeyMap())
+            .withStateResource(workflowDeploymentCache.getKeyToPositionWorkflowMap())
+            .withStateResource(payloadCache.getMap())
+
+            .withListener(workflowDeploymentCache)
+            .withListener(payloadCache)
+            .withListener(this)
+            .build();
     }
 
     @Override
-    public SnapshotSupport getStateResource()
+    public void onOpen(TypedStreamProcessor streamProcessor)
     {
-        return composedSnapshot;
-    }
-
-    @Override
-    public void onOpen(StreamProcessorContext context)
-    {
-        final LogStream logstream = context.getLogStream();
-        this.logStreamPartitionId = logstream.getPartitionId();
-        this.streamProcessorId = context.getId();
-
-        this.logStreamReader.wrap(logstream);
-        this.logStreamBatchWriter = new LogStreamBatchWriterImpl(logstream);
-        this.incidentEventWriter = new IncidentEventWriter(sourceEventMetadata, workflowInstanceEvent);
-
-        this.logStream = logstream;
-
+        final StreamProcessorContext context = streamProcessor.getStreamProcessorContext();
+        final LogStream logStream = context.getLogStream();
         final MetricsManager metricsManager = context.getActorScheduler().getMetricsManager();
-        final String topicName = logstream.getTopicName().getStringWithoutLengthUtf8(0, logstream.getTopicName().capacity());
-        final String partitionId = Integer.toString(logstream.getPartitionId());
+        final String topicName = logStream.getTopicName().getStringWithoutLengthUtf8(0, logStream.getTopicName().capacity());
+        final String partitionId = Integer.toString(logStream.getPartitionId());
 
         workflowInstanceEventCreate = metricsManager.newMetric("workflow_instance_events_count")
             .type("counter")
@@ -208,178 +184,9 @@ public class WorkflowInstanceStreamProcessor2 implements StreamProcessor
     @Override
     public void onClose()
     {
-        workflowInstanceIndex.close();
-        activityInstanceMap.close();
-        workflowDeploymentCache.close();
-        payloadCache.close();
-        logStreamReader.close();
-
         workflowInstanceEventCreate.close();
         workflowInstanceEventCanceled.close();
         workflowInstanceEventCompleted.close();
-    }
-
-    public static MetadataFilter eventFilter()
-    {
-        return m -> m.getEventType() == EventType.WORKFLOW_INSTANCE_EVENT
-                || m.getEventType() == EventType.TASK_EVENT
-                || m.getEventType() == EventType.WORKFLOW_EVENT;
-    }
-
-    @Override
-    public EventProcessor onEvent(LoggedEvent event)
-    {
-        reset();
-
-        eventKey = event.getKey();
-        eventPosition = event.getPosition();
-
-        sourceEventMetadata.reset();
-        event.readMetadata(sourceEventMetadata);
-
-        EventProcessor eventProcessor = null;
-        switch (sourceEventMetadata.getEventType())
-        {
-            case WORKFLOW_INSTANCE_EVENT:
-                eventProcessor = onWorkflowInstanceEvent(event);
-                break;
-
-            case TASK_EVENT:
-                eventProcessor = onTaskEvent(event);
-                break;
-
-            case WORKFLOW_EVENT:
-                eventProcessor = onWorkflowEvent(event);
-                break;
-
-            default:
-                break;
-        }
-
-        return eventProcessor;
-    }
-
-    protected void reset()
-    {
-        activityInstanceMap.reset();
-    }
-
-    protected EventProcessor onWorkflowInstanceEvent(LoggedEvent event)
-    {
-        workflowInstanceEvent.reset();
-        event.readValue(workflowInstanceEvent);
-
-        EventProcessor eventProcessor = null;
-        switch (workflowInstanceEvent.getState())
-        {
-            case CREATE_WORKFLOW_INSTANCE:
-                eventProcessor = createWorkflowInstanceEventProcessor;
-                break;
-
-            case WORKFLOW_INSTANCE_CREATED:
-                eventProcessor = workflowInstanceCreatedEventProcessor;
-                workflowInstanceEventCreate.incrementOrdered();
-                break;
-
-            case CANCEL_WORKFLOW_INSTANCE:
-                eventProcessor = cancelWorkflowInstanceProcessor;
-                break;
-
-            case WORKFLOW_INSTANCE_CANCELED:
-                workflowInstanceEventCanceled.incrementOrdered();
-                break;
-
-            case WORKFLOW_INSTANCE_COMPLETED:
-                workflowInstanceEventCompleted.incrementOrdered();
-                break;
-
-            case SEQUENCE_FLOW_TAKEN:
-                eventProcessor = sequenceFlowTakenEventProcessor;
-                break;
-
-            case ACTIVITY_READY:
-                eventProcessor = activityReadyEventProcessor;
-                break;
-
-            case ACTIVITY_ACTIVATED:
-                eventProcessor = activityActivatedEventProcessor;
-                break;
-
-            case ACTIVITY_COMPLETING:
-                eventProcessor = activityCompletingEventProcessor;
-                break;
-
-            case START_EVENT_OCCURRED:
-            case END_EVENT_OCCURRED:
-            case GATEWAY_ACTIVATED:
-            case ACTIVITY_COMPLETED:
-            {
-                final FlowNode currentActivity = getCurrentActivity();
-                eventProcessor = aspectHandlers.get(currentActivity.getBpmnAspect());
-                break;
-            }
-
-            case UPDATE_PAYLOAD:
-                eventProcessor = updatePayloadProcessor;
-                break;
-
-            default:
-                break;
-        }
-
-        return eventProcessor;
-    }
-
-    protected EventProcessor onTaskEvent(LoggedEvent event)
-    {
-        taskEvent.reset();
-        event.readValue(taskEvent);
-
-        switch (taskEvent.getState())
-        {
-            case CREATED:
-                return taskCreatedEventProcessor;
-
-            case COMPLETED:
-                return taskCompletedEventProcessor;
-
-            default:
-                return null;
-        }
-    }
-
-    protected EventProcessor onWorkflowEvent(LoggedEvent event)
-    {
-        workflowEvent.reset();
-        event.readValue(workflowEvent);
-
-        switch (workflowEvent.getState())
-        {
-            case CREATE:
-                return workflowCreateEventProcessor;
-
-            case DELETE:
-                return workflowDeleteEventProcessor;
-
-            default:
-                return null;
-        }
-    }
-
-    protected WorkflowInstanceEvent lookupWorkflowInstanceEvent(long position)
-    {
-        final boolean found = logStreamReader.seek(position);
-        if (found && logStreamReader.hasNext())
-        {
-            final LoggedEvent event = logStreamReader.next();
-
-            workflowInstanceEvent.reset();
-            event.readValue(workflowInstanceEvent);
-        }
-        else
-        {
-            throw new IllegalStateException("workflow instance event not found.");
-        }
     }
 
     private <T extends FlowElement> T getActivity(long workflowKey, DirectBuffer activityId)
@@ -397,42 +204,25 @@ public class WorkflowInstanceStreamProcessor2 implements StreamProcessor
         }
     }
 
-    protected long writeWorkflowEvent(LogStreamWriter writer)
+    private boolean isActive(long workflowInstanceKey)
     {
-        targetEventMetadata.reset();
-        targetEventMetadata
-                .protocolVersion(Protocol.PROTOCOL_VERSION)
-                .valueType(WORKFLOW_INSTANCE_EVENT);
-
-        // don't forget to set the key or use positionAsKey
-        return writer
-                .metadataWriter(targetEventMetadata)
-                .valueWriter(workflowInstanceEvent)
-                .tryWrite();
+        final WorkflowInstance workflowInstance = workflowInstanceIndex.get(workflowInstanceKey);
+        return workflowInstance != null && workflowInstance.getTokenCount() > 0;
     }
 
-    protected long writeTaskEvent(LogStreamWriter writer)
+    private TypedRecordProcessor<WorkflowInstanceEvent> getBpmnAspectHandler(WorkflowInstanceEvent workflowInstanceEvent)
     {
-        targetEventMetadata.reset();
-        targetEventMetadata
-                .protocolVersion(Protocol.PROTOCOL_VERSION)
-                .valueType(TASK_EVENT);
+        final boolean isActive = isActive(workflowInstanceEvent.getWorkflowInstanceKey());
 
-        // don't forget to set the key or use positionAsKey
-        return writer
-                .metadataWriter(targetEventMetadata)
-                .valueWriter(taskEvent)
-                .tryWrite();
-    }
-
-    protected boolean sendWorkflowInstanceResponse()
-    {
-        return responseWriter
-                .partitionId(logStreamPartitionId)
-                .position(eventPosition)
-                .key(eventKey)
-                .eventWriter(workflowInstanceEvent)
-                .tryWriteResponse(sourceEventMetadata.getRequestStreamId(), sourceEventMetadata.getRequestId());
+        if (isActive)
+        {
+            final FlowNode currentActivity = getActivity(workflowInstanceEvent.getWorkflowKey(), workflowInstanceEvent.getActivityId());
+            return aspectHandlers.get(currentActivity.getBpmnAspect());
+        }
+        else
+        {
+            return null;
+        }
     }
 
     private final class WorkflowCreateEventProcessor implements TypedRecordProcessor<WorkflowEvent>
@@ -449,7 +239,7 @@ public class WorkflowInstanceStreamProcessor2 implements StreamProcessor
         @Override
         public void processRecord(TypedRecord<WorkflowEvent> record)
         {
-            isNewWorkflow = !workflowDeploymentCache.hasWorkflow(eventKey);
+            isNewWorkflow = !workflowDeploymentCache.hasWorkflow(record.getKey());
         }
 
         @Override
@@ -500,11 +290,11 @@ public class WorkflowInstanceStreamProcessor2 implements StreamProcessor
 
             if (isDeleted)
             {
-                collectInstancesOfWorkflow();
+                collectInstancesOfWorkflow(record.getKey());
             }
         }
 
-        private void collectInstancesOfWorkflow()
+        private void collectInstancesOfWorkflow(long workflowKey)
         {
             workflowInstanceKeys.clear();
 
@@ -513,7 +303,7 @@ public class WorkflowInstanceStreamProcessor2 implements StreamProcessor
             {
                 final WorkflowInstance workflowInstance = workflowInstances.next();
 
-                if (eventKey == workflowInstance.getWorkflowKey())
+                if (workflowKey == workflowInstance.getWorkflowKey())
                 {
                     workflowInstanceKeys.addLong(workflowInstance.getKey());
                 }
@@ -647,6 +437,8 @@ public class WorkflowInstanceStreamProcessor2 implements StreamProcessor
         @Override
         public void processRecord(TypedRecord<WorkflowInstanceEvent> record)
         {
+            workflowInstanceEventCreate.incrementOrdered();
+
             final WorkflowInstanceEvent workflowInstanceEvent = record.getValue();
 
             final long workflowKey = workflowInstanceEvent.getWorkflowKey();
@@ -659,7 +451,7 @@ public class WorkflowInstanceStreamProcessor2 implements StreamProcessor
                 final DirectBuffer activityId = startEvent.getIdAsBuffer();
 
                 workflowInstanceEvent
-                    .setWorkflowInstanceKey(eventKey)
+                    .setWorkflowInstanceKey(record.getKey())
                     .setActivityId(activityId);
             }
             else
@@ -875,7 +667,6 @@ public class WorkflowInstanceStreamProcessor2 implements StreamProcessor
 
     private final class ActivityReadyEventProcessor implements TypedRecordProcessor<WorkflowInstanceEvent>
     {
-        private final DirectBuffer sourcePayload = new UnsafeBuffer(0, 0);
         private final IncidentEvent incidentCommand = new IncidentEvent();
 
         private boolean hasIncident;
@@ -933,11 +724,11 @@ public class WorkflowInstanceStreamProcessor2 implements StreamProcessor
 
             workflowInstanceIndex
                 .get(workflowInstanceEvent.getWorkflowInstanceKey())
-                .setActivityInstanceKey(eventKey)
+                .setActivityInstanceKey(record.getKey())
                 .write();
 
             activityInstanceMap
-                .newActivityInstance(eventKey)
+                .newActivityInstance(record.getKey())
                 .setActivityId(workflowInstanceEvent.getActivityId())
                 .setTaskKey(-1L)
                 .write();
@@ -976,7 +767,7 @@ public class WorkflowInstanceStreamProcessor2 implements StreamProcessor
                     .setWorkflowKey(activityEvent.getWorkflowKey())
                     .setWorkflowInstanceKey(activityEvent.getWorkflowInstanceKey())
                     .setActivityId(serviceTask.getIdAsBuffer())
-                    .setActivityInstanceKey(eventKey);
+                    .setActivityInstanceKey(record.getKey());
         }
 
         @Override
@@ -1193,7 +984,7 @@ public class WorkflowInstanceStreamProcessor2 implements StreamProcessor
         @Override
         public void processRecord(TypedRecord<WorkflowInstanceEvent> record)
         {
-            final WorkflowInstance workflowInstance = workflowInstanceIndex.get(eventKey);
+            final WorkflowInstance workflowInstance = workflowInstanceIndex.get(record.getKey());
 
             isCanceled = workflowInstance != null && workflowInstance.getTokenCount() > 0;
 
@@ -1240,13 +1031,15 @@ public class WorkflowInstanceStreamProcessor2 implements StreamProcessor
                     activityInstanceEvent
                         .setBpmnProcessId(workflowInstanceEvent.getBpmnProcessId())
                         .setVersion(workflowInstanceEvent.getVersion())
-                        .setWorkflowInstanceKey(eventKey)
+                        .setWorkflowInstanceKey(record.getKey())
                         .setActivityId(activityInstanceMap.getActivityId());
 
                     batchWriter.addEvent(activityInstanceKey, Intent.ACTIVITY_TERMINATED, activityInstanceEvent);
                 }
 
                 batchWriter.addEvent(record.getKey(), Intent.CANCELED, workflowInstanceEvent);
+
+                return batchWriter.write();
             }
             else
             {
@@ -1330,51 +1123,4 @@ public class WorkflowInstanceStreamProcessor2 implements StreamProcessor
             }
         }
     }
-
-    private final class ActiveWorkflowInstanceProcessor implements TypedRecordProcessor<WorkflowInstanceEvent>
-    {
-        private final TypedRecordProcessor<WorkflowInstanceEvent> processor;
-
-        private boolean isActive;
-
-        ActiveWorkflowInstanceProcessor(TypedRecordProcessor<WorkflowInstanceEvent> processor)
-        {
-            this.processor = processor;
-        }
-
-        @Override
-        public void processRecord(TypedRecord<WorkflowInstanceEvent> record)
-        {
-            final WorkflowInstanceEvent workflowInstanceEvent = record.getValue();
-            final WorkflowInstance workflowInstance = workflowInstanceIndex.get(workflowInstanceEvent.getWorkflowInstanceKey());
-            isActive = workflowInstance != null && workflowInstance.getTokenCount() > 0;
-
-            if (isActive)
-            {
-                processor.processRecord(record);
-            }
-        }
-
-        @Override
-        public boolean executeSideEffects(TypedRecord<WorkflowInstanceEvent> record, TypedResponseWriter responseWriter)
-        {
-            return isActive ? processor.executeSideEffects(record, responseWriter) : true;
-        }
-
-        @Override
-        public long writeRecord(TypedRecord<WorkflowInstanceEvent> record, TypedStreamWriter writer)
-        {
-            return isActive ? processor.writeRecord(record, writer) : 0L;
-        }
-
-        @Override
-        public void updateState(TypedRecord<WorkflowInstanceEvent> record)
-        {
-            if (isActive)
-            {
-                processor.updateState(record);
-            }
-        }
-    }
-
 }

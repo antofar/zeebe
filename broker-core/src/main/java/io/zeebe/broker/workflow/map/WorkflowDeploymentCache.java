@@ -17,15 +17,22 @@
  */
 package io.zeebe.broker.workflow.map;
 
-import static org.agrona.BitUtil.*;
+import static org.agrona.BitUtil.SIZE_OF_CHAR;
+import static org.agrona.BitUtil.SIZE_OF_INT;
+import static org.agrona.BitUtil.SIZE_OF_LONG;
 
 import java.nio.ByteOrder;
 import java.util.Iterator;
 
+import org.agrona.DirectBuffer;
+import org.agrona.collections.LongLruCache;
+import org.agrona.concurrent.UnsafeBuffer;
+
+import io.zeebe.broker.logstreams.processor.StreamProcessorLifecycleAware;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
+import io.zeebe.broker.logstreams.processor.TypedStreamProcessor;
+import io.zeebe.broker.logstreams.processor.TypedStreamReader;
 import io.zeebe.broker.workflow.data.WorkflowEvent;
-import io.zeebe.logstreams.log.LogStreamReader;
-import io.zeebe.logstreams.log.LoggedEvent;
-import io.zeebe.logstreams.snapshot.ZbMapSnapshotSupport;
 import io.zeebe.map.Bytes2LongZbMap;
 import io.zeebe.map.Long2BytesZbMap;
 import io.zeebe.model.bpmn.BpmnModelApi;
@@ -33,9 +40,6 @@ import io.zeebe.model.bpmn.impl.ZeebeConstraints;
 import io.zeebe.model.bpmn.instance.Workflow;
 import io.zeebe.model.bpmn.instance.WorkflowDefinition;
 import io.zeebe.util.buffer.BufferUtil;
-import org.agrona.DirectBuffer;
-import org.agrona.collections.LongLruCache;
-import org.agrona.concurrent.UnsafeBuffer;
 
 /**
  * Cache of deployed workflows. It contains an LRU cache which maps the workflow
@@ -47,7 +51,7 @@ import org.agrona.concurrent.UnsafeBuffer;
  * cache. If it is not present in the cache then the deployed event is seek in
  * the log stream.
  */
-public class WorkflowDeploymentCache implements AutoCloseable
+public class WorkflowDeploymentCache implements AutoCloseable, StreamProcessorLifecycleAware
 {
     private static final int LATEST_VERSION = -1;
 
@@ -66,40 +70,43 @@ public class WorkflowDeploymentCache implements AutoCloseable
     private final UnsafeBuffer idVersionKeyBuffer = new UnsafeBuffer(new byte[ID_VERSION_KEY_LENGTH]);
     private int idVersionKeyBufferLength;
 
-    private final WorkflowEvent workflowEvent = new WorkflowEvent();
-
     private final Bytes2LongZbMap idVersionToKeyMap;
     private final Long2BytesZbMap keyToPositionWorkflowMap;
 
-    private final ZbMapSnapshotSupport<Bytes2LongZbMap> idVersionSnapshot;
-    private final ZbMapSnapshotSupport<Long2BytesZbMap> keyPositionSnapshot;
-
     private final LongLruCache<DeployedWorkflow> cache;
-    private final LogStreamReader logStreamReader;
+    private TypedStreamReader logStreamReader;
 
     private final BpmnModelApi bpmn = new BpmnModelApi();
 
-    public WorkflowDeploymentCache(int cacheSize, LogStreamReader logStreamReader)
+    public WorkflowDeploymentCache(int cacheSize)
     {
         this.idVersionToKeyMap = new Bytes2LongZbMap(ID_VERSION_KEY_LENGTH);
         this.keyToPositionWorkflowMap = new Long2BytesZbMap(POSITION_WORKFLOW_VALUE_LENGTH);
 
-        this.idVersionSnapshot = new ZbMapSnapshotSupport<>(idVersionToKeyMap);
-        this.keyPositionSnapshot = new ZbMapSnapshotSupport<>(keyToPositionWorkflowMap);
-
-        this.logStreamReader = logStreamReader;
         this.cache = new LongLruCache<>(cacheSize, this::lookupWorkflow, (workflow) ->
         { });
     }
 
-    public ZbMapSnapshotSupport<Bytes2LongZbMap> getIdVersionSnapshot()
+    @Override
+    public void onOpen(TypedStreamProcessor streamProcessor)
     {
-        return idVersionSnapshot;
+        this.logStreamReader = streamProcessor.getEnvironment().buildStreamReader();
     }
 
-    public ZbMapSnapshotSupport<Long2BytesZbMap> getKeyPositionSnapshot()
+    @Override
+    public void onClose()
     {
-        return keyPositionSnapshot;
+        this.logStreamReader.close();
+    }
+
+    public Bytes2LongZbMap getIdVersionToKeyMap()
+    {
+        return idVersionToKeyMap;
+    }
+
+    public Long2BytesZbMap getKeyToPositionWorkflowMap()
+    {
+        return keyToPositionWorkflowMap;
     }
 
     private void wrapIdVersionKey(DirectBuffer bpmnProcessId, int version)
@@ -185,7 +192,7 @@ public class WorkflowDeploymentCache implements AutoCloseable
 
     private DeployedWorkflow lookupWorkflow(long key)
     {
-        DeployedWorkflow deployedWorkflow = null;
+        final DeployedWorkflow deployedWorkflow = null;
 
         final DirectBuffer positionWorkflowBuffer = keyToPositionWorkflowMap.get(key);
 
@@ -194,19 +201,13 @@ public class WorkflowDeploymentCache implements AutoCloseable
             final long eventPosition = positionWorkflowBuffer.getLong(POSITION_OFFSET, BYTE_ORDER);
             final int workflowIndex = positionWorkflowBuffer.getInt(WORKFLOW_INDEX_OFFSET, BYTE_ORDER);
 
-            final boolean found = logStreamReader.seek(eventPosition);
-            if (found && logStreamReader.hasNext())
-            {
-                final LoggedEvent event = logStreamReader.next();
+            final TypedRecord<WorkflowEvent> record = logStreamReader.readValue(eventPosition, WorkflowEvent.class);
+            final WorkflowEvent workflowEvent = record.getValue();
 
-                workflowEvent.reset();
-                event.readValue(workflowEvent);
+            final WorkflowDefinition workflowDefinition = bpmn.readFromXmlBuffer(workflowEvent.getBpmnXml());
+            final Workflow workflow = getWorkflowAt(workflowDefinition, workflowIndex);
 
-                final WorkflowDefinition workflowDefinition = bpmn.readFromXmlBuffer(workflowEvent.getBpmnXml());
-                final Workflow workflow = getWorkflowAt(workflowDefinition, workflowIndex);
-
-                deployedWorkflow = new DeployedWorkflow(workflow, workflowEvent.getVersion());
-            }
+            return new DeployedWorkflow(workflow, workflowEvent.getVersion());
         }
         return deployedWorkflow;
     }

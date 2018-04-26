@@ -19,6 +19,9 @@ package io.zeebe.broker.logstreams.processor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 import io.zeebe.logstreams.snapshot.ComposedSnapshot;
 import io.zeebe.logstreams.snapshot.UnpackedObjectSnapshotSupport;
@@ -49,6 +52,21 @@ public class TypedEventStreamProcessorBuilder
     public TypedEventStreamProcessorBuilder onEvent(ValueType valueType, Intent intent, TypedRecordProcessor<?> processor)
     {
         return onRecord(RecordType.EVENT, valueType, intent, processor);
+    }
+
+    public <T extends UnpackedObject> TypedEventStreamProcessorBuilder onEvent(ValueType valueType, Intent intent, Predicate<T> activationFunction, TypedRecordProcessor<T> processor)
+    {
+        return onEvent(valueType, intent, new DelegatingEventProcessor<T>(r -> activationFunction.test(r.getValue()) ? processor : null));
+    }
+
+    public <T extends UnpackedObject> TypedEventStreamProcessorBuilder onEvent(ValueType valueType, Intent intent, Function<T, TypedRecordProcessor<T>> dispatcher)
+    {
+        return onEvent(valueType, intent, new DelegatingEventProcessor<T>(r -> dispatcher.apply(r.getValue())));
+    }
+
+    public TypedEventStreamProcessorBuilder onEvent(ValueType valueType, Intent intent, Consumer<? extends UnpackedObject> consumer)
+    {
+        return onEvent(valueType, intent, new ConsumerProcessor<>(consumer));
     }
 
     private TypedEventStreamProcessorBuilder onRecord(RecordType recordType, ValueType valueType, Intent intent, TypedRecordProcessor<?> processor)
@@ -116,5 +134,58 @@ public class TypedEventStreamProcessorBuilder
                 lifecycleListeners,
                 environment.getEventRegistry(),
                 environment);
+    }
+
+    private static class DelegatingEventProcessor<T extends UnpackedObject> implements TypedRecordProcessor<T>
+    {
+        private Function<TypedRecord<T>, TypedRecordProcessor<T>> dispatcher;
+        private TypedRecordProcessor<T> selectedProcessor;
+
+        DelegatingEventProcessor(Function<TypedRecord<T>, TypedRecordProcessor<T>> dispatcher)
+        {
+            this.dispatcher = dispatcher;
+        }
+
+        @Override
+        public void processRecord(TypedRecord<T> record)
+        {
+            selectedProcessor = dispatcher.apply(record);
+        }
+        @Override
+        public boolean executeSideEffects(TypedRecord<T> record, TypedResponseWriter responseWriter)
+        {
+            return selectedProcessor != null ? selectedProcessor.executeSideEffects(record, responseWriter) : true;
+        }
+
+        @Override
+        public long writeRecord(TypedRecord<T> record, TypedStreamWriter writer)
+        {
+            return selectedProcessor != null ? selectedProcessor.writeRecord(record, writer) : 0L;
+        }
+
+        @Override
+        public void updateState(TypedRecord<T> record)
+        {
+            if (selectedProcessor != null)
+            {
+                selectedProcessor.updateState(record);
+            }
+        }
+    }
+
+    private static class ConsumerProcessor<T extends UnpackedObject> implements TypedRecordProcessor<T>
+    {
+        private final Consumer<T> consumer;
+
+        ConsumerProcessor(Consumer<T> consumer)
+        {
+            this.consumer = consumer;
+        }
+
+        @Override
+        public void processRecord(TypedRecord<T> record)
+        {
+            consumer.accept(record.getValue());
+        }
     }
 }
