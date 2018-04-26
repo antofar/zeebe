@@ -187,10 +187,12 @@ public class TopicCreationReviserService extends Actor implements Service<TopicC
 
     private void sendCreatePartitionRequest(final TopicInfo topicInfo, final Integer partitionId, List<PartitionNodes> listOfPartitionNodes)
     {
-        final List<NodeInfo> nodeList = listOfPartitionNodes.stream().flatMap(partitionNodes -> partitionNodes.getNodes().stream()).collect(Collectors.toList());
+        final List<NodeInfo> nodeList = listOfPartitionNodes.stream()
+            .flatMap(partitionNodes -> partitionNodes.getNodes().stream())
+            .collect(Collectors.toList());
 
-        final ActorFuture<NodeInfo> nextSocketAddressFuture = nodeOrchestratingService.getNextSocketAddress(nodeList);
-
+        final PartitionInfo newPartition = new PartitionInfo(topicInfo.getTopicNameBuffer(), partitionId, topicInfo.getReplicationFactor());
+        final ActorFuture<NodeInfo> nextSocketAddressFuture = nodeOrchestratingService.getNextSocketAddress(nodeList, newPartition);
         actor.runOnCompletion(nextSocketAddressFuture, (nodeInfo, error) ->
         {
             if (error == null)

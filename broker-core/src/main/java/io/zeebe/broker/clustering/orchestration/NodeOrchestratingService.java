@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class NodeOrchestratingService extends Actor implements Service<NodeOrchestratingService>, TopologyMemberListener, TopologyPartitionListener
 {
@@ -93,6 +94,7 @@ public class NodeOrchestratingService extends Actor implements Service<NodeOrche
                 final boolean added = nodeLoad.addPartition(partitionInfo);
                 if (added)
                 {
+                    nodeLoad.removePending(partitionInfo);
                     Collections.sort(loads, this::loadComparator);
                     LOG.debug("Increased load of node {} by partition {}", member, partitionInfo);
                 }
@@ -104,14 +106,15 @@ public class NodeOrchestratingService extends Actor implements Service<NodeOrche
         });
     }
 
-    public ActorFuture<NodeInfo> getNextSocketAddress(List<NodeInfo> except)
+    public ActorFuture<NodeInfo> getNextSocketAddress(List<NodeInfo> except, PartitionInfo forPartitionInfo)
     {
         final CompletableActorFuture<NodeInfo> nextAddressFuture = new CompletableActorFuture<>();
         actor.run(() ->
         {
+            NodeLoad nextNode = null;
             if (except == null || except.isEmpty())
             {
-                nextAddressFuture.complete(loads.get(0).getNodeInfo());
+                nextNode = loads.get(0);
             }
             else
             {
@@ -121,13 +124,19 @@ public class NodeOrchestratingService extends Actor implements Service<NodeOrche
 
                 if (nextOptional.isPresent())
                 {
-                    nextAddressFuture.complete(nextOptional.get().getNodeInfo());
+                    nextNode = nextOptional.get();
                 }
-                else
-                {
-                    final String errorMessage = String.format("Found no next address, from current state %s with the excepted list %s", loads, except);
-                    nextAddressFuture.completeExceptionally(new IllegalStateException(errorMessage));
-                }
+            }
+
+            if (nextNode != null)
+            {
+                nextNode.addPendingPartiton(forPartitionInfo);
+                nextAddressFuture.complete(nextNode.getNodeInfo());
+            }
+            else
+            {
+                final String errorMessage = String.format("Found no next address, from current state %s with the excepted list %s", loads, except);
+                nextAddressFuture.completeExceptionally(new IllegalStateException(errorMessage));
             }
         });
         return nextAddressFuture;
@@ -140,6 +149,11 @@ public class NodeOrchestratingService extends Actor implements Service<NodeOrche
 
     private int loadComparator(NodeLoad load1, NodeLoad load2)
     {
-        return Integer.compare(load1.getLoad().size(), load2.getLoad().size());
+        final int comparedLoad = Integer.compare(load1.getLoad().size(), load2.getLoad().size());
+        if (comparedLoad == 0)
+        {
+            return Integer.compare(load1.getPendings().size(), load2.getPendings().size());
+        }
+        return comparedLoad;
     }
 }

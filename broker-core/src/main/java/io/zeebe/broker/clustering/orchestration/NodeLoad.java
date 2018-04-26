@@ -29,10 +29,13 @@ public class NodeLoad
     private final NodeInfo nodeInfo;
     private Set<PartitionInfo> load;
 
+    private Set<PartitionInfo> pendings;
+
     public NodeLoad(final NodeInfo nodeInfo)
     {
         this.nodeInfo = nodeInfo;
         this.load = new HashSet<>();
+        this.pendings = new HashSet<>();
     }
 
     public NodeInfo getNodeInfo()
@@ -48,6 +51,21 @@ public class NodeLoad
     public boolean addPartition(final PartitionInfo partitionInfo)
     {
         return load.add(partitionInfo);
+    }
+
+    public boolean addPendingPartiton(final PartitionInfo partitionInfo)
+    {
+        return pendings.add(partitionInfo);
+    }
+
+    public Set<PartitionInfo> getPendings()
+    {
+        return pendings;
+    }
+
+    public boolean removePending(PartitionInfo partitionInfo)
+    {
+        return pendings.remove(partitionInfo);
     }
 
     @Override
