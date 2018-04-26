@@ -26,9 +26,13 @@ import io.zeebe.broker.logstreams.processor.StreamProcessorServiceFactory;
 import io.zeebe.broker.logstreams.processor.TypedStreamEnvironment;
 import io.zeebe.broker.system.ConfigurationManager;
 import io.zeebe.broker.system.deployment.handler.CreateWorkflowResponseSender;
-import io.zeebe.broker.transport.clientapi.CommandResponseWriter;
 import io.zeebe.broker.workflow.processor.WorkflowInstanceStreamProcessor;
-import io.zeebe.servicecontainer.*;
+import io.zeebe.servicecontainer.Injector;
+import io.zeebe.servicecontainer.Service;
+import io.zeebe.servicecontainer.ServiceGroupReference;
+import io.zeebe.servicecontainer.ServiceName;
+import io.zeebe.servicecontainer.ServiceStartContext;
+import io.zeebe.servicecontainer.ServiceStopContext;
 import io.zeebe.transport.ServerTransport;
 import io.zeebe.util.sched.Actor;
 
@@ -63,21 +67,20 @@ public class WorkflowQueueManagerService extends Actor implements Service<Workfl
     private void installWorkflowStreamProcessor(Partition partition, ServiceName<Partition> partitionServiceName)
     {
         final ServerTransport transport = clientApiTransportInjector.getValue();
-        final CommandResponseWriter responseWriter = new CommandResponseWriter(transport.getOutput());
 
         final ServerTransport managementServer = managementServerInjector.getValue();
         final CreateWorkflowResponseSender createWorkflowResponseSender = new CreateWorkflowResponseSender(managementServer);
 
-        final WorkflowInstanceStreamProcessor workflowInstanceStreamProcessor = new WorkflowInstanceStreamProcessor(responseWriter,
-             createWorkflowResponseSender,
-             workflowCfg.deploymentCacheSize,
-             workflowCfg.payloadCacheSize);
+        final WorkflowInstanceStreamProcessor streamProcessor = new WorkflowInstanceStreamProcessor(
+                createWorkflowResponseSender,
+                workflowCfg.deploymentCacheSize,
+                workflowCfg.payloadCacheSize);
+        final TypedStreamEnvironment env = new TypedStreamEnvironment(partition.getLogStream(), transport.getOutput());
 
         streamProcessorServiceFactory.createService(partition, partitionServiceName)
-            .processor(workflowInstanceStreamProcessor)
+            .processor(streamProcessor.createStreamProcessor(env))
             .processorId(WORKFLOW_INSTANCE_PROCESSOR_ID)
             .processorName("workflow-instance")
-            .eventFilter(WorkflowInstanceStreamProcessor.eventFilter())
             .build();
     }
 
