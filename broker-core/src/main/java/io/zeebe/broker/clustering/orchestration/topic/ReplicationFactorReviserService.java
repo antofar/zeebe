@@ -50,7 +50,7 @@ public class ReplicationFactorReviserService extends Actor implements Service<Re
     private static final Logger LOG = Loggers.ORCHESTRATION_LOGGER;
 
     public static final Duration TIMER_RATE = Duration.ofSeconds(1);
-    public static final Duration PENDING_TOPIC_CREATION_TIMEOUT = Duration.ofMinutes(1);
+    public static final Duration PENDING_TOPIC_CREATION_TIMEOUT = Duration.ofSeconds(30);
 
     private final Injector<ClusterTopicState> stateInjector = new Injector<>();
     private final Injector<TopologyManager> topologyManagerInjector = new Injector<>();

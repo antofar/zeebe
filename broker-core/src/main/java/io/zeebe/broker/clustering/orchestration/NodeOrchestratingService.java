@@ -35,7 +35,7 @@ import org.slf4j.Logger;
 public class NodeOrchestratingService extends Actor implements Service<NodeOrchestratingService>, TopologyMemberListener, TopologyPartitionListener
 {
     private static final Logger LOG = Loggers.ORCHESTRATION_LOGGER;
-    public static final Duration NODE_PENDING_TIMEOUT = Duration.ofMinutes(1);
+    public static final Duration NODE_PENDING_TIMEOUT = Duration.ofSeconds(30);
 
     private final Injector<TopologyManager> topologyManagerInjector = new Injector<>();
 
