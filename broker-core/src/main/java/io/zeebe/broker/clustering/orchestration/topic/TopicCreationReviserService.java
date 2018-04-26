@@ -18,8 +18,7 @@
 package io.zeebe.broker.clustering.orchestration.topic;
 
 import java.time.Duration;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import io.zeebe.broker.Loggers;
@@ -53,6 +52,7 @@ public class TopicCreationReviserService extends Actor implements Service<TopicC
     private static final Logger LOG = Loggers.ORCHESTRATION_LOGGER;
 
     public static final Duration TIMER_RATE = Duration.ofSeconds(1);
+    public static final Duration PENDING_TOPIC_CREATION_TIMEOUT = Duration.ofMinutes(1);
 
     private final Injector<ClusterTopicState> stateInjector = new Injector<>();
     private final Injector<TopologyManager> topologyManagerInjector = new Injector<>();
@@ -69,6 +69,8 @@ public class TopicCreationReviserService extends Actor implements Service<TopicC
     private NodeOrchestratingService nodeOrchestratingService;
     private ClientTransport clientTransport;
 
+    private Set<TopicInfo> pendingTopicCreation;
+
     @Override
     public void start(final ServiceStartContext startContext)
     {
@@ -82,6 +84,8 @@ public class TopicCreationReviserService extends Actor implements Service<TopicC
         final TypedStreamEnvironment typedStreamEnvironment = new TypedStreamEnvironment(leaderSystemPartition.getLogStream(), null);
         streamReader = typedStreamEnvironment.buildStreamReader();
         streamWriter = typedStreamEnvironment.buildStreamWriter();
+
+        pendingTopicCreation = new HashSet<>();
 
         startContext.async(startContext.getScheduler().submitActor(this));
     }
@@ -145,15 +149,19 @@ public class TopicCreationReviserService extends Actor implements Service<TopicC
         for (final Map.Entry<DirectBuffer, TopicInfo> desiredEntry : desiredState.entrySet())
         {
             final TopicInfo desiredTopic = desiredEntry.getValue();
-
             final List<PartitionNodes> listOfPartitionNodes = currentState.getPartitions(desiredTopic.getTopicNameBuffer());
             final int missingPartitions = desiredTopic.getPartitionCount() - listOfPartitionNodes.size();
             if (missingPartitions > 0)
             {
-                LOG.debug("Creating {} partitions for topic {}", missingPartitions, desiredTopic.getTopicName());
-                for (int i = 0; i < missingPartitions; i++)
+                if (!pendingTopicCreation.contains(desiredTopic))
                 {
-                    createPartition(desiredTopic, listOfPartitionNodes);
+                    LOG.debug("Creating {} partitions for topic {}", missingPartitions, desiredTopic.getTopicName());
+                    for (int i = 0; i < missingPartitions; i++)
+                    {
+                        createPartition(desiredTopic, listOfPartitionNodes);
+                    }
+                    pendingTopicCreation.add(desiredTopic);
+                    actor.runDelayed(PENDING_TOPIC_CREATION_TIMEOUT, () -> pendingTopicCreation.remove(desiredTopic));
                 }
             }
             else
@@ -165,6 +173,8 @@ public class TopicCreationReviserService extends Actor implements Service<TopicC
                 listOfPartitionNodes.forEach(partitionNodes -> topicEvent.getPartitionIds().add().setValue(partitionNodes.getPartitionId()));
                 topicEvent.setState(TopicState.CREATED);
                 streamWriter.writeFollowupEvent(readEvent.getKey(), topicEvent);
+
+                pendingTopicCreation.remove(desiredTopic);
             }
         }
     }
