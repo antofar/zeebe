@@ -101,7 +101,6 @@ public class ReplicationFactorReviserService extends Actor implements Service<Re
 
         actor.runOnCompletion(stateFuture, (desiredState, error) ->
         {
-            LOG.debug("Revising replication factor {}", desiredState);
             if (error == null)
             {
                 checkDesiredState(desiredState);
@@ -185,7 +184,7 @@ public class ReplicationFactorReviserService extends Actor implements Service<Re
                                                           .collect(Collectors.toList());
 
         final InvitationRequest request = new InvitationRequest()
-            .topicName(partitionInfo.getTopicName())
+            .topicName(partitionInfo.getTopicNameBuffer())
             .partitionId(partitionInfo.getPartitionId())
             .replicationFactor(partitionInfo.getReplicationFactor())
             .members(members);

@@ -19,7 +19,7 @@ public class ClusterPartitionState
 
     public void addPartition(final PartitionInfo partitionInfo, final ReadableTopology topology)
     {
-        final List<PartitionNodes> listOfPartitionNodes = state.computeIfAbsent(partitionInfo.getTopicName(), t -> new ArrayList<>());
+        final List<PartitionNodes> listOfPartitionNodes = state.computeIfAbsent(partitionInfo.getTopicNameBuffer(), t -> new ArrayList<>());
 
         final PartitionNodes newPartitionNodes = new PartitionNodes(partitionInfo);
         newPartitionNodes.setLeader(topology.getLeader(partitionInfo.getPartitionId()));
