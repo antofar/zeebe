@@ -15,20 +15,19 @@
  */
 package io.zeebe.broker.it.clustering;
 
+import static io.zeebe.broker.it.clustering.ClusteringRule.*;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.List;
+
 import io.zeebe.broker.it.ClientRule;
 import io.zeebe.client.clustering.impl.TopologyBroker;
 import io.zeebe.test.util.AutoCloseableRule;
 import io.zeebe.transport.SocketAddress;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
 import org.junit.rules.Timeout;
-
-import java.util.List;
-
-import static io.zeebe.broker.it.clustering.ClusteringRule.*;
-import static org.assertj.core.api.Assertions.assertThat;
 
 public class GossipDifferentNodeJoinTest
 {

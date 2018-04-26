@@ -143,7 +143,7 @@ public class ClusteringRule extends ExternalResource
      */
     public Topic createTopic(String topicName, int partitionCount)
     {
-       return createTopic(topicName, partitionCount, getReplicationFactor());
+        return createTopic(topicName, partitionCount, getReplicationFactor());
     }
 
     public Topic createTopic(String topicName, int partitionCount, int replicationFactor)
