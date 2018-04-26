@@ -69,12 +69,12 @@ public class IdGenerator implements TypedEventProcessor<IdEvent>, Service<IdGene
         final ActorFuture<Integer> pendingIdFuture = pendingFutures.poll();
         if (pendingIdFuture != null)
         {
-            LOG.debug("Id generated {}", idEvent);
+            LOG.debug("Id generated {}", value);
             pendingIdFuture.complete(value.getId());
         }
         else
         {
-            LOG.warn("No pending id request found, ignoring id event {}", idEvent);
+            LOG.warn("No pending id request found, ignoring id event {}", value);
         }
         return true;
     }
