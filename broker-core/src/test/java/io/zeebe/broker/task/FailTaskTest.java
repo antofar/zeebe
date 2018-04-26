@@ -38,7 +38,7 @@ import io.zeebe.protocol.clientapi.SubscriptionType;
 import io.zeebe.test.broker.protocol.clientapi.ClientApiRule;
 import io.zeebe.test.broker.protocol.clientapi.ControlMessageResponse;
 import io.zeebe.test.broker.protocol.clientapi.ExecuteCommandResponse;
-import io.zeebe.test.broker.protocol.clientapi.SubscribedEvent;
+import io.zeebe.test.broker.protocol.clientapi.SubscribedRecord;
 import io.zeebe.test.broker.protocol.clientapi.TestTopicClient;
 
 public class FailTaskTest
@@ -67,19 +67,19 @@ public class FailTaskTest
 
         apiRule.openTaskSubscription(TASK_TYPE).await();
 
-        final SubscribedEvent subscribedEvent = receiveSingleSubscribedEvent();
+        final SubscribedRecord subscribedEvent = receiveSingleSubscribedEvent();
 
         // when
-        final ExecuteCommandResponse response = client.failTask(subscribedEvent.key(), subscribedEvent.event());
+        final ExecuteCommandResponse response = client.failTask(subscribedEvent.key(), subscribedEvent.value());
 
         // then
-        final Map<String, Object> expectedEvent = new HashMap<>(subscribedEvent.event());
+        final Map<String, Object> expectedEvent = new HashMap<>(subscribedEvent.value());
         expectedEvent.put("state", "FAILED");
 
         assertThat(response.getEvent()).containsAllEntriesOf(expectedEvent);
 
         // and the task is published again
-        final SubscribedEvent republishedEvent = receiveSingleSubscribedEvent();
+        final SubscribedRecord republishedEvent = receiveSingleSubscribedEvent();
         assertThat(republishedEvent.key()).isEqualTo(subscribedEvent.key());
         assertThat(republishedEvent.position()).isNotEqualTo(subscribedEvent.position());
 
@@ -88,7 +88,7 @@ public class FailTaskTest
 
         final int expectedTopicEvents = 8;
 
-        final List<SubscribedEvent> taskEvents = doRepeatedly(() -> apiRule
+        final List<SubscribedRecord> taskEvents = doRepeatedly(() -> apiRule
                 .moveMessageStreamToHead()
                 .subscribedEvents()
                 .filter(e -> e.subscriptionType() == SubscriptionType.TOPIC_SUBSCRIPTION)
@@ -96,7 +96,7 @@ public class FailTaskTest
                 .collect(Collectors.toList()))
             .until(e -> e.size() == expectedTopicEvents);
 
-        assertThat(taskEvents).extracting(e -> e.event().get("state"))
+        assertThat(taskEvents).extracting(e -> e.value().get("state"))
             .containsExactly(
                     "CREATE",
                     "CREATED",
@@ -133,13 +133,13 @@ public class FailTaskTest
         final ControlMessageResponse subscriptionResponse = apiRule.openTaskSubscription(TASK_TYPE).await();
         final int subscriberKey = (int) subscriptionResponse.getData().get("subscriberKey");
 
-        final SubscribedEvent subscribedEvent = receiveSingleSubscribedEvent();
+        final SubscribedRecord subscribedEvent = receiveSingleSubscribedEvent();
         apiRule.closeTaskSubscription(subscriberKey).await();
 
-        client.failTask(subscribedEvent.key(), subscribedEvent.event());
+        client.failTask(subscribedEvent.key(), subscribedEvent.value());
 
         // when
-        final ExecuteCommandResponse response = client.failTask(subscribedEvent.key(), subscribedEvent.event());
+        final ExecuteCommandResponse response = client.failTask(subscribedEvent.key(), subscribedEvent.value());
 
         // then
         assertThat(response.getEvent()).containsEntry("state", "FAIL_REJECTED");
@@ -168,12 +168,12 @@ public class FailTaskTest
 
         apiRule.openTaskSubscription(TASK_TYPE).await();
 
-        final SubscribedEvent subscribedEvent = receiveSingleSubscribedEvent();
+        final SubscribedRecord subscribedEvent = receiveSingleSubscribedEvent();
 
-        client.completeTask(subscribedEvent.key(), subscribedEvent.event());
+        client.completeTask(subscribedEvent.key(), subscribedEvent.value());
 
         // when
-        final ExecuteCommandResponse response = client.failTask(subscribedEvent.key(), subscribedEvent.event());
+        final ExecuteCommandResponse response = client.failTask(subscribedEvent.key(), subscribedEvent.value());
 
         // then
         assertThat(response.getEvent()).containsEntry("state", "FAIL_REJECTED");
@@ -198,8 +198,8 @@ public class FailTaskTest
                 .done()
             .sendAndAwait();
 
-        final SubscribedEvent subscribedEvent = receiveSingleSubscribedEvent();
-        final Map<String, Object> event = subscribedEvent.event();
+        final SubscribedRecord subscribedEvent = receiveSingleSubscribedEvent();
+        final Map<String, Object> event = subscribedEvent.value();
         event.put("lockOwner", "jan");
 
         // when
@@ -209,7 +209,7 @@ public class FailTaskTest
         assertThat(response.getEvent()).containsEntry("state", "FAIL_REJECTED");
     }
 
-    private SubscribedEvent receiveSingleSubscribedEvent()
+    private SubscribedRecord receiveSingleSubscribedEvent()
     {
         waitUntil(() -> apiRule.numSubscribedEventsAvailable() == 1);
         return apiRule.subscribedEvents().findFirst().get();

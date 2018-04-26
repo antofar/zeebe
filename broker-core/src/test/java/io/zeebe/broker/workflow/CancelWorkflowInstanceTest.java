@@ -71,21 +71,21 @@ public class CancelWorkflowInstanceTest
         // then
         assertThat(response.getEvent()).containsEntry("state", "WORKFLOW_INSTANCE_CANCELED");
 
-        final SubscribedEvent workflowInstanceCanceledEvent = testClient.receiveSingleEvent(workflowInstanceEvents("WORKFLOW_INSTANCE_CANCELED"));
+        final SubscribedRecord workflowInstanceCanceledEvent = testClient.receiveSingleEvent(workflowInstanceEvents("WORKFLOW_INSTANCE_CANCELED"));
 
         assertThat(workflowInstanceCanceledEvent.key()).isEqualTo(workflowInstanceKey);
-        assertThat(workflowInstanceCanceledEvent.event())
+        assertThat(workflowInstanceCanceledEvent.value())
             .containsEntry(PROP_WORKFLOW_BPMN_PROCESS_ID, "process")
             .containsEntry(PROP_WORKFLOW_VERSION, 1)
             .containsEntry(PROP_WORKFLOW_INSTANCE_KEY, workflowInstanceKey)
             .containsEntry(PROP_WORKFLOW_ACTIVITY_ID, "");
 
-        final List<SubscribedEvent> workflowEvents = testClient
+        final List<SubscribedRecord> workflowEvents = testClient
                 .receiveEvents(workflowInstanceEvents())
                 .limit(9)
                 .collect(Collectors.toList());
 
-        assertThat(workflowEvents).extracting(e -> e.event().get(PROP_STATE)).containsExactly(
+        assertThat(workflowEvents).extracting(e -> e.value().get(PROP_STATE)).containsExactly(
                 "CREATE_WORKFLOW_INSTANCE",
                 "WORKFLOW_INSTANCE_CREATED",
                 "START_EVENT_OCCURRED",
@@ -105,17 +105,17 @@ public class CancelWorkflowInstanceTest
 
         final long workflowInstanceKey = testClient.createWorkflowInstance("process");
 
-        final SubscribedEvent activityActivatedEvent = testClient.receiveSingleEvent(workflowInstanceEvents("ACTIVITY_ACTIVATED"));
+        final SubscribedRecord activityActivatedEvent = testClient.receiveSingleEvent(workflowInstanceEvents("ACTIVITY_ACTIVATED"));
 
         final ExecuteCommandResponse response = cancelWorkflowInstance(workflowInstanceKey);
 
         // then
         assertThat(response.getEvent()).containsEntry("state", "WORKFLOW_INSTANCE_CANCELED");
 
-        final SubscribedEvent activityTerminatedEvent = testClient.receiveSingleEvent(workflowInstanceEvents("ACTIVITY_TERMINATED"));
+        final SubscribedRecord activityTerminatedEvent = testClient.receiveSingleEvent(workflowInstanceEvents("ACTIVITY_TERMINATED"));
 
         assertThat(activityTerminatedEvent.key()).isEqualTo(activityActivatedEvent.key());
-        assertThat(activityTerminatedEvent.event())
+        assertThat(activityTerminatedEvent.value())
             .containsEntry(PROP_WORKFLOW_BPMN_PROCESS_ID, "process")
             .containsEntry(PROP_WORKFLOW_VERSION, 1)
             .containsEntry(PROP_WORKFLOW_INSTANCE_KEY, workflowInstanceKey)
@@ -130,19 +130,19 @@ public class CancelWorkflowInstanceTest
 
         final long workflowInstanceKey = testClient.createWorkflowInstance("process");
 
-        final SubscribedEvent taskCreatedEvent = testClient.receiveSingleEvent(taskEvents("CREATED"));
+        final SubscribedRecord taskCreatedEvent = testClient.receiveSingleEvent(taskEvents("CREATED"));
 
         final ExecuteCommandResponse response = cancelWorkflowInstance(workflowInstanceKey);
 
         // then
         assertThat(response.getEvent()).containsEntry("state", "WORKFLOW_INSTANCE_CANCELED");
 
-        final SubscribedEvent taskCanceledEvent = testClient.receiveSingleEvent(taskEvents("CANCELED"));
+        final SubscribedRecord taskCanceledEvent = testClient.receiveSingleEvent(taskEvents("CANCELED"));
 
         assertThat(taskCanceledEvent.key()).isEqualTo(taskCreatedEvent.key());
 
         @SuppressWarnings("unchecked")
-        final Map<String, Object> headers = (Map<String, Object>) taskCanceledEvent.event().get("headers");
+        final Map<String, Object> headers = (Map<String, Object>) taskCanceledEvent.value().get("headers");
         assertThat(headers)
             .containsEntry("workflowInstanceKey", workflowInstanceKey)
             .containsEntry("bpmnProcessId", "process")
@@ -187,7 +187,7 @@ public class CancelWorkflowInstanceTest
     private ExecuteCommandResponse cancelWorkflowInstance(final long workflowInstanceKey)
     {
         return apiRule.createCmdRequest()
-            .eventTypeWorkflow()
+            .valueTypeWorkflow()
             .key(workflowInstanceKey)
             .command()
                 .put("state", "CANCEL_WORKFLOW_INSTANCE")

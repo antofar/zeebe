@@ -36,7 +36,7 @@ import io.zeebe.protocol.clientapi.EventType;
 import io.zeebe.protocol.clientapi.SubscriptionType;
 import io.zeebe.test.broker.protocol.clientapi.ClientApiRule;
 import io.zeebe.test.broker.protocol.clientapi.ExecuteCommandResponse;
-import io.zeebe.test.broker.protocol.clientapi.SubscribedEvent;
+import io.zeebe.test.broker.protocol.clientapi.SubscribedRecord;
 import io.zeebe.test.broker.protocol.clientapi.TestTopicClient;
 
 public class TaskUpdateRetriesTest
@@ -66,9 +66,9 @@ public class TaskUpdateRetriesTest
 
         apiRule.openTaskSubscription(TASK_TYPE).await();
 
-        final SubscribedEvent subscribedEvent = receiveSingleSubscribedEvent();
+        final SubscribedRecord subscribedEvent = receiveSingleSubscribedEvent();
 
-        Map<String, Object> event = subscribedEvent.event();
+        Map<String, Object> event = subscribedEvent.value();
         event.put("retries", 0);
         final ExecuteCommandResponse failResponse = client.failTask(subscribedEvent.key(), event);
 
@@ -85,7 +85,7 @@ public class TaskUpdateRetriesTest
         assertThat(response.getEvent()).containsAllEntriesOf(expectedEvent);
 
         // and the task is published again
-        final SubscribedEvent republishedEvent = receiveSingleSubscribedEvent();
+        final SubscribedRecord republishedEvent = receiveSingleSubscribedEvent();
         assertThat(republishedEvent.key()).isEqualTo(subscribedEvent.key());
         assertThat(republishedEvent.position()).isNotEqualTo(subscribedEvent.position());
 
@@ -94,7 +94,7 @@ public class TaskUpdateRetriesTest
 
         final int expectedTopicEvents = 10;
 
-        final List<SubscribedEvent> taskEvents = doRepeatedly(() -> apiRule
+        final List<SubscribedRecord> taskEvents = doRepeatedly(() -> apiRule
                 .moveMessageStreamToHead()
                 .subscribedEvents()
                 .filter(e -> e.subscriptionType() == SubscriptionType.TOPIC_SUBSCRIPTION &&
@@ -103,7 +103,7 @@ public class TaskUpdateRetriesTest
                 .collect(Collectors.toList()))
             .until(e -> e.size() == expectedTopicEvents);
 
-        assertThat(taskEvents).extracting(e -> e.event().get("state"))
+        assertThat(taskEvents).extracting(e -> e.value().get("state"))
             .containsExactly(
                     "CREATE",
                     "CREATED",
@@ -141,9 +141,9 @@ public class TaskUpdateRetriesTest
 
         apiRule.openTaskSubscription(TASK_TYPE).await();
 
-        final SubscribedEvent subscribedEvent = receiveSingleSubscribedEvent();
+        final SubscribedRecord subscribedEvent = receiveSingleSubscribedEvent();
 
-        Map<String, Object> event = subscribedEvent.event();
+        Map<String, Object> event = subscribedEvent.value();
         final ExecuteCommandResponse completeResponse = client.completeTask(subscribedEvent.key(), event);
 
         event = completeResponse.getEvent();
@@ -164,9 +164,9 @@ public class TaskUpdateRetriesTest
 
         apiRule.openTaskSubscription(TASK_TYPE).await();
 
-        final SubscribedEvent subscribedEvent = receiveSingleSubscribedEvent();
+        final SubscribedRecord subscribedEvent = receiveSingleSubscribedEvent();
 
-        final Map<String, Object> event = subscribedEvent.event();
+        final Map<String, Object> event = subscribedEvent.value();
         event.put("retries", NEW_RETRIES);
 
         // when
@@ -185,9 +185,9 @@ public class TaskUpdateRetriesTest
 
         apiRule.openTaskSubscription(TASK_TYPE).await();
 
-        final SubscribedEvent subscribedEvent = receiveSingleSubscribedEvent();
+        final SubscribedRecord subscribedEvent = receiveSingleSubscribedEvent();
 
-        Map<String, Object> event = subscribedEvent.event();
+        Map<String, Object> event = subscribedEvent.value();
         event.put("retries", 0);
         final ExecuteCommandResponse failResponse = client.failTask(subscribedEvent.key(), event);
 
@@ -209,9 +209,9 @@ public class TaskUpdateRetriesTest
 
         apiRule.openTaskSubscription(TASK_TYPE).await();
 
-        final SubscribedEvent subscribedEvent = receiveSingleSubscribedEvent();
+        final SubscribedRecord subscribedEvent = receiveSingleSubscribedEvent();
 
-        Map<String, Object> event = subscribedEvent.event();
+        Map<String, Object> event = subscribedEvent.value();
         event.put("retries", 0);
         final ExecuteCommandResponse failResponse = client.failTask(subscribedEvent.key(), event);
 
@@ -225,7 +225,7 @@ public class TaskUpdateRetriesTest
         assertThat(response.getEvent()).containsEntry("state", "UPDATE_RETRIES_REJECTED");
     }
 
-    private SubscribedEvent receiveSingleSubscribedEvent()
+    private SubscribedRecord receiveSingleSubscribedEvent()
     {
         waitUntil(() -> apiRule.numSubscribedEventsAvailable() == 1);
         return apiRule.subscribedEvents().findFirst().get();

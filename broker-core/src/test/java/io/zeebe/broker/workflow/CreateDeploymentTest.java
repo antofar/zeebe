@@ -43,7 +43,7 @@ import io.zeebe.protocol.Protocol;
 import io.zeebe.protocol.clientapi.EventType;
 import io.zeebe.test.broker.protocol.clientapi.ClientApiRule;
 import io.zeebe.test.broker.protocol.clientapi.ExecuteCommandResponse;
-import io.zeebe.test.broker.protocol.clientapi.SubscribedEvent;
+import io.zeebe.test.broker.protocol.clientapi.SubscribedRecord;
 import io.zeebe.util.StreamUtil;
 import org.assertj.core.util.Files;
 import org.junit.Rule;
@@ -115,9 +115,9 @@ public class CreateDeploymentTest
         final long deploymentKey = apiRule.topic().deploy(ClientApiRule.DEFAULT_TOPIC_NAME, WORKFLOW);
 
         // then
-        final SubscribedEvent workflowEvent = apiRule.topic().receiveSingleEvent(workflowEvents("CREATED"));
+        final SubscribedRecord workflowEvent = apiRule.topic().receiveSingleEvent(workflowEvents("CREATED"));
         assertThat(workflowEvent.key()).isGreaterThanOrEqualTo(0L).isNotEqualTo(deploymentKey);
-        assertThat(workflowEvent.event())
+        assertThat(workflowEvent.value())
             .containsEntry(PROP_WORKFLOW_BPMN_PROCESS_ID, "process")
             .containsEntry(PROP_WORKFLOW_VERSION, 1)
             .containsEntry("deploymentKey", deploymentKey)
@@ -148,12 +148,12 @@ public class CreateDeploymentTest
         // then
         assertThat(resp.getEvent()).containsEntry(PROP_STATE, "CREATED");
 
-        final List<SubscribedEvent> workflowEvents = apiRule.topic().receiveEvents(workflowEvents("CREATED"))
+        final List<SubscribedRecord> workflowEvents = apiRule.topic().receiveEvents(workflowEvents("CREATED"))
                 .limit(2)
                 .collect(toList());
 
         assertThat(workflowEvents)
-            .extracting(s -> s.event().get(PROP_WORKFLOW_BPMN_PROCESS_ID))
+            .extracting(s -> s.value().get(PROP_WORKFLOW_BPMN_PROCESS_ID))
             .contains("process1", "process2");
     }
 
@@ -173,12 +173,12 @@ public class CreateDeploymentTest
         // then
         assertThat(resp.getEvent()).containsEntry(PROP_STATE, "CREATED");
 
-        final List<SubscribedEvent> workflowEvents = apiRule.topic().receiveEvents(workflowEvents("CREATED"))
+        final List<SubscribedRecord> workflowEvents = apiRule.topic().receiveEvents(workflowEvents("CREATED"))
                 .limit(2)
                 .collect(toList());
 
         assertThat(workflowEvents)
-            .extracting(s -> s.event().get(PROP_WORKFLOW_BPMN_PROCESS_ID))
+            .extracting(s -> s.value().get(PROP_WORKFLOW_BPMN_PROCESS_ID))
             .contains("process1", "process2");
     }
 
@@ -206,12 +206,12 @@ public class CreateDeploymentTest
         // then
         assertThat(resp.getEvent()).containsEntry(PROP_STATE, "CREATED");
 
-        final List<SubscribedEvent> workflowEvents = apiRule.topic().receiveEvents(workflowEvents("CREATED"))
+        final List<SubscribedRecord> workflowEvents = apiRule.topic().receiveEvents(workflowEvents("CREATED"))
                 .limit(3)
                 .collect(toList());
 
         assertThat(workflowEvents)
-            .extracting(s -> s.event().get(PROP_WORKFLOW_BPMN_PROCESS_ID))
+            .extracting(s -> s.value().get(PROP_WORKFLOW_BPMN_PROCESS_ID))
             .contains("singleProcess", "process1", "process2");
     }
 
@@ -346,8 +346,8 @@ public class CreateDeploymentTest
         // then
         assertThat(resp.getEvent()).containsEntry(PROP_STATE, "CREATED");
 
-        final SubscribedEvent workflowEvent = apiRule.topic().receiveSingleEvent(workflowEvents("CREATED"));
-        assertThat(workflowEvent.event())
+        final SubscribedRecord workflowEvent = apiRule.topic().receiveSingleEvent(workflowEvents("CREATED"));
+        assertThat(workflowEvent.value())
             .containsEntry(PROP_WORKFLOW_BPMN_PROCESS_ID, "yaml-workflow")
             .containsEntry("deploymentKey", resp.key())
             .containsEntry("bpmnXml", bpmnXml(Bpmn.readFromYamlFile(yamlFile)));
@@ -369,7 +369,7 @@ public class CreateDeploymentTest
         final List<Long> workflowKeys = new ArrayList<>();
         partitionIds.forEach(partitionId ->
         {
-            final SubscribedEvent event = apiRule.topic(partitionId).receiveSingleEvent(workflowEvents("CREATED"));
+            final SubscribedRecord event = apiRule.topic(partitionId).receiveSingleEvent(workflowEvents("CREATED"));
 
             workflowKeys.add(event.key());
         });
@@ -391,11 +391,11 @@ public class CreateDeploymentTest
         apiRule.topic().deploy("bar", WORKFLOW);
 
         // then
-        final SubscribedEvent eventFoo = apiRule.topic(apiRule.getSinglePartitionId("foo")).receiveSingleEvent(workflowEvents("CREATED"));
-        final SubscribedEvent eventBar = apiRule.topic(apiRule.getSinglePartitionId("bar")).receiveSingleEvent(workflowEvents("CREATED"));
+        final SubscribedRecord eventFoo = apiRule.topic(apiRule.getSinglePartitionId("foo")).receiveSingleEvent(workflowEvents("CREATED"));
+        final SubscribedRecord eventBar = apiRule.topic(apiRule.getSinglePartitionId("bar")).receiveSingleEvent(workflowEvents("CREATED"));
 
-        assertThat(eventFoo.event().get("version")).isEqualTo(1);
-        assertThat(eventBar.event().get("version")).isEqualTo(1);
+        assertThat(eventFoo.value().get("version")).isEqualTo(1);
+        assertThat(eventBar.value().get("version")).isEqualTo(1);
     }
 
     private Map<String, Object> deploymentResource(final byte[] resource, String name)

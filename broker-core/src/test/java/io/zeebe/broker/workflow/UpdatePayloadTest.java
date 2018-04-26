@@ -65,7 +65,7 @@ public class UpdatePayloadTest
 
         final long workflowInstanceKey = testClient.createWorkflowInstance("process");
 
-        final SubscribedEvent activityInstanceEvent = testClient.receiveSingleEvent(workflowInstanceEvents("ACTIVITY_ACTIVATED"));
+        final SubscribedRecord activityInstanceEvent = testClient.receiveSingleEvent(workflowInstanceEvents("ACTIVITY_ACTIVATED"));
 
         // when
         final ExecuteCommandResponse response = updatePayload(workflowInstanceKey,
@@ -75,13 +75,13 @@ public class UpdatePayloadTest
         // then
         assertThat(response.getEvent()).containsEntry("state", "PAYLOAD_UPDATED");
 
-        final SubscribedEvent updatedEvent = testClient.receiveSingleEvent(workflowInstanceEvents("PAYLOAD_UPDATED"));
+        final SubscribedRecord updatedEvent = testClient.receiveSingleEvent(workflowInstanceEvents("PAYLOAD_UPDATED"));
 
         assertThat(updatedEvent.position()).isGreaterThan(response.position());
         assertThat(updatedEvent.key()).isEqualTo(activityInstanceEvent.key());
-        assertThat(updatedEvent.event()).containsEntry("workflowInstanceKey", workflowInstanceKey);
+        assertThat(updatedEvent.value()).containsEntry("workflowInstanceKey", workflowInstanceKey);
 
-        final byte[] payload = (byte[]) updatedEvent.event().get("payload");
+        final byte[] payload = (byte[]) updatedEvent.value().get("payload");
 
         assertThat(MSGPACK_MAPPER.readTree(payload))
             .isEqualTo(JSON_MAPPER.readTree("{'foo':'bar'}"));
@@ -95,7 +95,7 @@ public class UpdatePayloadTest
 
         final long workflowInstanceKey = testClient.createWorkflowInstance("process");
 
-        final SubscribedEvent activityInstanceEvent = testClient.receiveSingleEvent(workflowInstanceEvents("ACTIVITY_ACTIVATED"));
+        final SubscribedRecord activityInstanceEvent = testClient.receiveSingleEvent(workflowInstanceEvents("ACTIVITY_ACTIVATED"));
 
         // when
         updatePayload(workflowInstanceKey, activityInstanceEvent.key(),
@@ -106,9 +106,9 @@ public class UpdatePayloadTest
         testClient.completeTaskOfType("task-1", MSGPACK_PAYLOAD);
 
         // then
-        final SubscribedEvent activityCompletedEvent = testClient.receiveSingleEvent(workflowInstanceEvents("ACTIVITY_COMPLETED"));
+        final SubscribedRecord activityCompletedEvent = testClient.receiveSingleEvent(workflowInstanceEvents("ACTIVITY_COMPLETED"));
 
-        final byte[] payload = (byte[]) activityCompletedEvent.event().get("payload");
+        final byte[] payload = (byte[]) activityCompletedEvent.value().get("payload");
 
         assertThat(MSGPACK_MAPPER.readTree(payload))
             .isEqualTo(JSON_MAPPER.readTree("{'obj':{'testAttr':'test'}, 'b':'wf'}"));
@@ -120,7 +120,7 @@ public class UpdatePayloadTest
         // given
         testClient.deploy(WORKFLOW);
         final long workflowInstanceKey = testClient.createWorkflowInstance("process");
-        final SubscribedEvent activityInstanceEvent = testClient.receiveSingleEvent(workflowInstanceEvents("ACTIVITY_ACTIVATED"));
+        final SubscribedRecord activityInstanceEvent = testClient.receiveSingleEvent(workflowInstanceEvents("ACTIVITY_ACTIVATED"));
 
         // when
         final ExecuteCommandResponse response = updatePayload(workflowInstanceKey, activityInstanceEvent.key(),
@@ -152,7 +152,7 @@ public class UpdatePayloadTest
 
         final long workflowInstanceKey = testClient.createWorkflowInstance("process");
 
-        final SubscribedEvent activityInstanceEvent = testClient.receiveSingleEvent(workflowInstanceEvents("ACTIVITY_ACTIVATED"));
+        final SubscribedRecord activityInstanceEvent = testClient.receiveSingleEvent(workflowInstanceEvents("ACTIVITY_ACTIVATED"));
 
         testClient.completeTaskOfType("task-1", MSGPACK_PAYLOAD);
 
@@ -173,7 +173,7 @@ public class UpdatePayloadTest
     private ExecuteCommandResponse updatePayload(final long workflowInstanceKey, final long activityInstanceKey, byte[] payload) throws Exception
     {
         return apiRule.createCmdRequest()
-            .eventTypeWorkflow()
+            .valueTypeWorkflow()
             .key(activityInstanceKey)
             .command()
                 .put("state", "UPDATE_PAYLOAD")

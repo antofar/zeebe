@@ -67,7 +67,7 @@ public class CreateWorkflowInstanceTest
     {
         // when
         final ExecuteCommandResponse resp = apiRule.createCmdRequest()
-                .eventTypeWorkflow()
+                .valueTypeWorkflow()
                 .command()
                     .put(PROP_STATE, "CREATE_WORKFLOW_INSTANCE")
                     .put(PROP_WORKFLOW_BPMN_PROCESS_ID, "process")
@@ -95,7 +95,7 @@ public class CreateWorkflowInstanceTest
 
         // when
         final ExecuteCommandResponse resp = apiRule.createCmdRequest()
-                .eventTypeWorkflow()
+                .valueTypeWorkflow()
                 .command()
                     .put(PROP_STATE, "CREATE_WORKFLOW_INSTANCE")
                     .put(PROP_WORKFLOW_BPMN_PROCESS_ID, "process")
@@ -103,7 +103,7 @@ public class CreateWorkflowInstanceTest
                 .sendAndAwait();
 
         // then
-        final SubscribedEvent workflowEvent = testClient.receiveSingleEvent(workflowEvents("CREATED"));
+        final SubscribedRecord workflowEvent = testClient.receiveSingleEvent(workflowEvents("CREATED"));
         final long workflowKey = workflowEvent.key();
 
         assertThat(resp.key()).isGreaterThanOrEqualTo(0L);
@@ -132,7 +132,7 @@ public class CreateWorkflowInstanceTest
 
         // when
         final ExecuteCommandResponse resp = apiRule.createCmdRequest()
-                .eventTypeWorkflow()
+                .valueTypeWorkflow()
                 .command()
                     .put(PROP_STATE, "CREATE_WORKFLOW_INSTANCE")
                     .put(PROP_WORKFLOW_BPMN_PROCESS_ID, "process")
@@ -141,15 +141,15 @@ public class CreateWorkflowInstanceTest
                 .sendAndAwait();
 
         // then
-        final SubscribedEvent workflowEvent = testClient.receiveEvents(workflowEvents("CREATED"))
+        final SubscribedRecord workflowEvent = testClient.receiveEvents(workflowEvents("CREATED"))
                 .limit(2)
                 .collect(Collectors.toList())
                 .get(1);
         final long workflowKey = workflowEvent.key();
 
-        final SubscribedEvent event = testClient.receiveSingleEvent(workflowInstanceEvents(START_EVENT_OCCURRED.name()));
+        final SubscribedRecord event = testClient.receiveSingleEvent(workflowInstanceEvents(START_EVENT_OCCURRED.name()));
 
-        assertThat(event.event())
+        assertThat(event.value())
             .containsEntry(PROP_WORKFLOW_BPMN_PROCESS_ID, "process")
             .containsEntry(PROP_WORKFLOW_INSTANCE_KEY, resp.key())
             .containsEntry(PROP_WORKFLOW_ACTIVITY_ID, "bar")
@@ -173,7 +173,7 @@ public class CreateWorkflowInstanceTest
 
         // when
         final ExecuteCommandResponse resp = apiRule.createCmdRequest()
-                .eventTypeWorkflow()
+                .valueTypeWorkflow()
                 .command()
                     .put(PROP_STATE, "CREATE_WORKFLOW_INSTANCE")
                     .put(PROP_WORKFLOW_BPMN_PROCESS_ID, "process")
@@ -182,15 +182,15 @@ public class CreateWorkflowInstanceTest
                 .sendAndAwait();
 
         // then
-        final SubscribedEvent workflowEvent = testClient.receiveEvents(workflowEvents("CREATED"))
+        final SubscribedRecord workflowEvent = testClient.receiveEvents(workflowEvents("CREATED"))
                 .limit(2)
                 .collect(Collectors.toList())
                 .get(0);
         final long workflowKey = workflowEvent.key();
 
-        final SubscribedEvent event = testClient.receiveSingleEvent(workflowInstanceEvents(START_EVENT_OCCURRED.name()));
+        final SubscribedRecord event = testClient.receiveSingleEvent(workflowInstanceEvents(START_EVENT_OCCURRED.name()));
 
-        assertThat(event.event())
+        assertThat(event.value())
             .containsEntry(PROP_WORKFLOW_BPMN_PROCESS_ID, "process")
             .containsEntry(PROP_WORKFLOW_INSTANCE_KEY, resp.key())
             .containsEntry(PROP_WORKFLOW_ACTIVITY_ID, "foo")
@@ -212,7 +212,7 @@ public class CreateWorkflowInstanceTest
               .endEvent()
               .done());
 
-        final SubscribedEvent workflowEvent = testClient.receiveEvents(workflowEvents("CREATED"))
+        final SubscribedRecord workflowEvent = testClient.receiveEvents(workflowEvents("CREATED"))
                 .limit(2)
                 .collect(Collectors.toList())
                 .get(1);
@@ -220,7 +220,7 @@ public class CreateWorkflowInstanceTest
 
         // when
         final ExecuteCommandResponse resp = apiRule.createCmdRequest()
-                .eventTypeWorkflow()
+                .valueTypeWorkflow()
                 .command()
                     .put(PROP_STATE, "CREATE_WORKFLOW_INSTANCE")
                     .put(PROP_WORKFLOW_KEY, workflowKey)
@@ -252,7 +252,7 @@ public class CreateWorkflowInstanceTest
                   .endEvent()
                   .done());
 
-        final SubscribedEvent workflowEvent = testClient.receiveEvents(workflowEvents("CREATED"))
+        final SubscribedRecord workflowEvent = testClient.receiveEvents(workflowEvents("CREATED"))
                 .limit(2)
                 .collect(Collectors.toList())
                 .get(0);
@@ -260,7 +260,7 @@ public class CreateWorkflowInstanceTest
 
         // when
         final ExecuteCommandResponse resp = apiRule.createCmdRequest()
-                .eventTypeWorkflow()
+                .valueTypeWorkflow()
                 .command()
                     .put(PROP_STATE, "CREATE_WORKFLOW_INSTANCE")
                     .put(PROP_WORKFLOW_KEY, workflowKey)
@@ -289,7 +289,7 @@ public class CreateWorkflowInstanceTest
 
         // when
         final ExecuteCommandResponse resp = apiRule.createCmdRequest()
-                .eventTypeWorkflow()
+                .valueTypeWorkflow()
                 .command()
                     .put(PROP_STATE, "CREATE_WORKFLOW_INSTANCE")
                     .put(PROP_WORKFLOW_BPMN_PROCESS_ID, "process")
@@ -321,7 +321,7 @@ public class CreateWorkflowInstanceTest
         final byte[] invalidPayload = MSGPACK_MAPPER.writeValueAsBytes(JSON_MAPPER.readTree("'foo'"));
 
         final ExecuteCommandResponse resp = apiRule.createCmdRequest()
-                .eventTypeWorkflow()
+                .valueTypeWorkflow()
                 .command()
                     .put(PROP_STATE, "CREATE_WORKFLOW_INSTANCE")
                     .put(PROP_WORKFLOW_BPMN_PROCESS_ID, "process")
@@ -356,15 +356,15 @@ public class CreateWorkflowInstanceTest
         final long workflowInstanceKeyBaaaar = testClient.createWorkflowInstance("baaaar");
 
         // then
-        final List<SubscribedEvent> workflowInstanceEvents = testClient.receiveEvents(workflowInstanceEvents("WORKFLOW_INSTANCE_CREATED"))
+        final List<SubscribedRecord> workflowInstanceEvents = testClient.receiveEvents(workflowInstanceEvents("WORKFLOW_INSTANCE_CREATED"))
                 .limit(2)
                 .collect(Collectors.toList());
 
-        assertThat(workflowInstanceEvents.get(0).event())
+        assertThat(workflowInstanceEvents.get(0).value())
             .containsEntry("bpmnProcessId", "foo")
             .containsEntry("workflowInstanceKey", workflowInstanceKeyFoo);
 
-        assertThat(workflowInstanceEvents.get(1).event())
+        assertThat(workflowInstanceEvents.get(1).value())
             .containsEntry("bpmnProcessId", "baaaar")
             .containsEntry("workflowInstanceKey", workflowInstanceKeyBaaaar);
     }
@@ -395,15 +395,15 @@ public class CreateWorkflowInstanceTest
 
 
         // then
-        final List<SubscribedEvent> workflowInstanceEvents = testClient.receiveEvents(workflowInstanceEvents("ACTIVITY_ACTIVATED"))
+        final List<SubscribedRecord> workflowInstanceEvents = testClient.receiveEvents(workflowInstanceEvents("ACTIVITY_ACTIVATED"))
                 .limit(2)
                 .collect(Collectors.toList());
 
-        assertThat(workflowInstanceEvents.get(0).event())
+        assertThat(workflowInstanceEvents.get(0).value())
             .containsEntry("workflowInstanceKey", workflowInstance1)
             .containsEntry("version", 1);
 
-        assertThat(workflowInstanceEvents.get(1).event())
+        assertThat(workflowInstanceEvents.get(1).value())
             .containsEntry("workflowInstanceKey", workflowInstance2)
             .containsEntry("version", 2);
 
@@ -429,8 +429,8 @@ public class CreateWorkflowInstanceTest
         final long workflowInstanceKey = testClient.createWorkflowInstance("yaml-workflow");
 
         // then
-        final SubscribedEvent workflowInstanceEvent = testClient.receiveSingleEvent(workflowInstanceEvents("WORKFLOW_INSTANCE_CREATED"));
-        assertThat(workflowInstanceEvent.event())
+        final SubscribedRecord workflowInstanceEvent = testClient.receiveSingleEvent(workflowInstanceEvents("WORKFLOW_INSTANCE_CREATED"));
+        assertThat(workflowInstanceEvent.value())
             .containsEntry("bpmnProcessId", "yaml-workflow")
             .containsEntry("workflowInstanceKey", workflowInstanceKey);
     }
@@ -485,11 +485,11 @@ public class CreateWorkflowInstanceTest
         final long wfInstance2 = testClient.createWorkflowInstance("process2");
 
         // then
-        final SubscribedEvent event1 = testClient.receiveSingleEvent(workflowInstanceEvents("WORKFLOW_INSTANCE_CREATED", wfInstance1));
-        assertThat(event1.event().get("bpmnProcessId")).isEqualTo("process1");
+        final SubscribedRecord event1 = testClient.receiveSingleEvent(workflowInstanceEvents("WORKFLOW_INSTANCE_CREATED", wfInstance1));
+        assertThat(event1.value().get("bpmnProcessId")).isEqualTo("process1");
 
-        final SubscribedEvent event2 = testClient.receiveSingleEvent(workflowInstanceEvents("WORKFLOW_INSTANCE_CREATED", wfInstance2));
-        assertThat(event2.event().get("bpmnProcessId")).isEqualTo("process2");
+        final SubscribedRecord event2 = testClient.receiveSingleEvent(workflowInstanceEvents("WORKFLOW_INSTANCE_CREATED", wfInstance2));
+        assertThat(event2.value().get("bpmnProcessId")).isEqualTo("process2");
     }
 
 }

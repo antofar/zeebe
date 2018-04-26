@@ -45,7 +45,7 @@ import io.zeebe.test.broker.protocol.clientapi.ControlMessageRequestBuilder;
 import io.zeebe.test.broker.protocol.clientapi.ControlMessageResponse;
 import io.zeebe.test.broker.protocol.clientapi.ErrorResponse;
 import io.zeebe.test.broker.protocol.clientapi.ExecuteCommandResponse;
-import io.zeebe.test.broker.protocol.clientapi.SubscribedEvent;
+import io.zeebe.test.broker.protocol.clientapi.SubscribedRecord;
 import io.zeebe.test.broker.protocol.clientapi.TestTopicClient;
 import io.zeebe.transport.SocketAddress;
 import io.zeebe.util.StringUtil;
@@ -87,10 +87,10 @@ public class TaskSubscriptionTest
         final ExecuteCommandResponse response = testClient.createTask("foo");
 
         // then
-        final SubscribedEvent taskEvent = testClient.receiveSingleEvent(taskEvents("LOCKED"));
+        final SubscribedRecord taskEvent = testClient.receiveSingleEvent(taskEvents("LOCKED"));
         assertThat(taskEvent.key()).isEqualTo(response.key());
         assertThat(taskEvent.position()).isGreaterThan(response.position());
-        assertThat(taskEvent.event())
+        assertThat(taskEvent.value())
             .containsEntry("type", "foo")
             .containsEntry("retries", 3)
             .containsEntry("lockOwner", "bar");
@@ -98,7 +98,7 @@ public class TaskSubscriptionTest
         final List<Object> taskStates = testClient
             .receiveEvents(taskEvents())
             .limit(4)
-            .map(e -> e.event().get("state"))
+            .map(e -> e.value().get("state"))
             .collect(Collectors.toList());
 
         assertThat(taskStates).containsExactly("CREATE", "CREATED", "LOCK", "LOCKED");
@@ -144,7 +144,7 @@ public class TaskSubscriptionTest
         Thread.sleep(500L);
 
         final int eventsAvailable = apiRule.numSubscribedEventsAvailable();
-        final List<SubscribedEvent> receivedEvents = apiRule.subscribedEvents().limit(eventsAvailable).collect(Collectors.toList());
+        final List<SubscribedRecord> receivedEvents = apiRule.subscribedEvents().limit(eventsAvailable).collect(Collectors.toList());
 
         assertThat(receivedEvents).hasSize(2);
         assertThat(receivedEvents).allMatch(e -> e.subscriptionType() == SubscriptionType.TOPIC_SUBSCRIPTION);
@@ -328,7 +328,7 @@ public class TaskSubscriptionTest
         // then
         waitUntil(() -> apiRule.numSubscribedEventsAvailable() == 4);
 
-        final List<SubscribedEvent> receivedEvents = apiRule.subscribedEvents().limit(4)
+        final List<SubscribedRecord> receivedEvents = apiRule.subscribedEvents().limit(4)
                 .collect(Collectors.toList());
 
         final long firstReceivingSubscriber = receivedEvents.get(0).subscriberKey();
@@ -362,7 +362,7 @@ public class TaskSubscriptionTest
             .await();
         final int secondSubscriberKey = (int) subscriptionResponse.getData().get("subscriberKey");
 
-        final Optional<SubscribedEvent> taskEvent = apiRule.subscribedEvents()
+        final Optional<SubscribedRecord> taskEvent = apiRule.subscribedEvents()
             .filter((s) -> s.subscriptionType() == SubscriptionType.TASK_SUBSCRIPTION
                 && s.key() == response.key())
             .findFirst();
@@ -393,7 +393,7 @@ public class TaskSubscriptionTest
         waitUntil(() -> apiRule.numSubscribedEventsAvailable() == 2);
 
         // then
-        final List<SubscribedEvent> events = apiRule.subscribedEvents().limit(2).collect(Collectors.toList());
+        final List<SubscribedRecord> events = apiRule.subscribedEvents().limit(2).collect(Collectors.toList());
         assertThat(events.get(0).subscriberKey()).isNotEqualTo(events.get(1).subscriberKey());
 
     }
@@ -484,17 +484,17 @@ public class TaskSubscriptionTest
         testClient.createTask("bar");
 
         // then
-        final List<SubscribedEvent> taskEvents = apiRule.topic().receiveEvents(taskEvents("LOCKED"))
+        final List<SubscribedRecord> taskEvents = apiRule.topic().receiveEvents(taskEvents("LOCKED"))
                 .limit(2)
                 .collect(Collectors.toList());
 
         assertThat(taskEvents).hasSize(2);
 
-        assertThat(taskEvents.get(0).event())
+        assertThat(taskEvents.get(0).value())
             .containsEntry("type", "foo")
             .containsEntry("lockOwner", "owner1");
 
-        assertThat(taskEvents.get(1).event())
+        assertThat(taskEvents.get(1).value())
             .containsEntry("type", "bar")
             .containsEntry("lockOwner", "owner2");
     }
@@ -524,12 +524,12 @@ public class TaskSubscriptionTest
         Thread.sleep(500);
         waitUntil(() -> apiRule.numSubscribedEventsAvailable() == 2);
 
-        final List<SubscribedEvent> taskEvents = apiRule.topic().receiveEvents(taskEvents("LOCKED"))
+        final List<SubscribedRecord> taskEvents = apiRule.topic().receiveEvents(taskEvents("LOCKED"))
                 .limit(2)
                 .collect(Collectors.toList());
 
         assertThat(taskEvents)
-            .extracting(s -> s.event().get("lockOwner"))
+            .extracting(s -> s.value().get("lockOwner"))
             .contains("bar");
     }
 
@@ -607,10 +607,10 @@ public class TaskSubscriptionTest
         testClient.createTask(taskType);
 
         waitUntil(() -> apiRule.numSubscribedEventsAvailable() == 1);
-        final SubscribedEvent task = apiRule.subscribedEvents().findFirst().get();
+        final SubscribedRecord task = apiRule.subscribedEvents().findFirst().get();
 
         // when
-        final Map<String, Object> event = new HashMap<>(task.event());
+        final Map<String, Object> event = new HashMap<>(task.value());
         event.put("retries", 0);
         testClient.failTask(task.key(), event);
 
@@ -664,7 +664,7 @@ public class TaskSubscriptionTest
         // then
         waitUntil(() -> apiRule.numSubscribedEventsAvailable() == 1);
 
-        final SubscribedEvent subscribedEvent = apiRule.subscribedEvents().findFirst().get();
+        final SubscribedRecord subscribedEvent = apiRule.subscribedEvents().findFirst().get();
         assertThat(subscribedEvent.subscriberKey()).isEqualTo(secondSubscriber);
     }
 

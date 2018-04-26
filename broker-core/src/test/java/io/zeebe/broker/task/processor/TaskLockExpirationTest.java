@@ -21,7 +21,7 @@ import io.zeebe.broker.task.TaskQueueManagerService;
 import io.zeebe.broker.test.EmbeddedBrokerRule;
 import io.zeebe.test.broker.protocol.clientapi.ClientApiRule;
 import io.zeebe.test.broker.protocol.clientapi.ExecuteCommandResponse;
-import io.zeebe.test.broker.protocol.clientapi.SubscribedEvent;
+import io.zeebe.test.broker.protocol.clientapi.SubscribedRecord;
 import io.zeebe.test.broker.protocol.clientapi.TestTopicClient;
 import org.junit.Rule;
 import org.junit.Test;
@@ -76,7 +76,7 @@ public class TaskLockExpirationTest
         createTask(taskType);
 
         apiRule.openTaskSubscription(apiRule.getDefaultPartitionId(), taskType, lockTime.toMillis()).await();
-        final SubscribedEvent lockedTask = apiRule.subscribedEvents().findFirst().get(); // => task is locked
+        final SubscribedRecord lockedTask = apiRule.subscribedEvents().findFirst().get(); // => task is locked
 
         completeTask(lockedTask);
 
@@ -98,9 +98,9 @@ public class TaskLockExpirationTest
         createTask(taskType);
 
         apiRule.openTaskSubscription(apiRule.getDefaultPartitionId(), taskType, lockTime.toMillis()).await();
-        final SubscribedEvent lockedTask = apiRule.subscribedEvents().findFirst().get(); // => task is locked
+        final SubscribedRecord lockedTask = apiRule.subscribedEvents().findFirst().get(); // => task is locked
 
-        final Map<String, Object> event = new HashMap<>(lockedTask.event());
+        final Map<String, Object> event = new HashMap<>(lockedTask.value());
         event.put("retries", 0);
         failTask(lockedTask.key(), event);
 
@@ -136,13 +136,13 @@ public class TaskLockExpirationTest
 
 
         // then locked again
-        final List<SubscribedEvent> events = apiRule.topic()
+        final List<SubscribedRecord> events = apiRule.topic()
                                                      .receiveEvents(TestTopicClient.taskEvents())
                                                      .limit(8)
                                                      .collect(Collectors.toList());
 
         assertThat(events).extracting(e -> e.key()).contains(taskKey1);
-        assertThat(events).extracting(e -> e.event().get("state"))
+        assertThat(events).extracting(e -> e.value().get("state"))
                           .containsExactly("CREATE", "CREATED", "LOCK", "LOCKED", "EXPIRE_LOCK", "LOCK_EXPIRED", "LOCK", "LOCKED");
     }
 
@@ -171,25 +171,25 @@ public class TaskLockExpirationTest
         }).until(v -> apiRule.numSubscribedEventsAvailable() == 2);
 
         // then
-        final List<SubscribedEvent> expiredEvents = apiRule.topic()
+        final List<SubscribedRecord> expiredEvents = apiRule.topic()
                                                     .receiveEvents(TestTopicClient.taskEvents())
                                                     .limit(16)
                                                     .collect(Collectors.toList());
 
         assertThat(expiredEvents)
-            .filteredOn(e -> e.event().get("state").equals("LOCKED"))
+            .filteredOn(e -> e.value().get("state").equals("LOCKED"))
             .hasSize(4)
             .extracting(e -> e.key()).containsExactly(taskKey1, taskKey2, taskKey1, taskKey2);
 
         assertThat(expiredEvents)
-            .filteredOn(e -> e.event().get("state").equals("LOCK_EXPIRED"))
+            .filteredOn(e -> e.value().get("state").equals("LOCK_EXPIRED"))
             .extracting(e -> e.key()).containsExactlyInAnyOrder(taskKey1, taskKey2);
     }
 
     private long createTask(String type)
     {
         final ExecuteCommandResponse resp = apiRule.createCmdRequest()
-            .eventTypeTask()
+            .valueTypeTask()
             .command()
                 .put("state", "CREATE")
                 .put("type", type)
@@ -200,13 +200,13 @@ public class TaskLockExpirationTest
         return resp.key();
     }
 
-    private void completeTask(SubscribedEvent lockedTask)
+    private void completeTask(SubscribedRecord lockedTask)
     {
         apiRule.createCmdRequest()
-            .eventTypeTask()
+            .valueTypeTask()
             .key(lockedTask.key())
             .command()
-                .putAll(lockedTask.event())
+                .putAll(lockedTask.value())
                 .put("state", "COMPLETE")
                 .done()
             .sendAndAwait();
@@ -215,7 +215,7 @@ public class TaskLockExpirationTest
     private void failTask(long key, Map<String, Object> event)
     {
         apiRule.createCmdRequest()
-            .eventTypeTask()
+            .valueTypeTask()
             .key(key)
             .command()
                 .putAll(event)

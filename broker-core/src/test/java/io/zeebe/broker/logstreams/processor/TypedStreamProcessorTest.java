@@ -87,7 +87,7 @@ public class TypedStreamProcessorTest
 
         final StreamProcessorControl streamProcessorControl = streams.initStreamProcessor(STREAM_NAME, STREAM_PROCESSOR_ID, () -> streamProcessor);
         streamProcessorControl.start();
-        final long firstEventPosition = streams.newEvent(STREAM_NAME).event(createTopic("foo", 1)).write();
+        final long firstEventPosition = streams.newRecord(STREAM_NAME).event(createTopic("foo", 1)).write();
 
         // when
         streamProcessorControl.unblock();

@@ -181,7 +181,7 @@ public class ClientApiRule extends ExternalResource
     {
         return createCmdRequest()
             .partitionId(partitionId)
-            .eventTypeSubscriber()
+            .valueTypeSubscriber()
             .command()
                 .put("startPosition", startPosition)
                 .put("name", name)
@@ -252,7 +252,7 @@ public class ClientApiRule extends ExternalResource
      * @return an infinite stream of received subscribed events; make sure to use short-circuiting operations
      *   to reduce it to a finite stream
      */
-    public Stream<SubscribedEvent> subscribedEvents()
+    public Stream<SubscribedRecord> subscribedEvents()
     {
         return incomingMessages().filter(this::isSubscribedEvent)
                 .map(this::asSubscribedEvent);
@@ -273,9 +273,9 @@ public class ClientApiRule extends ExternalResource
         return brokerAddress;
     }
 
-    protected SubscribedEvent asSubscribedEvent(RawMessage message)
+    protected SubscribedRecord asSubscribedEvent(RawMessage message)
     {
-        final SubscribedEvent event = new SubscribedEvent(message);
+        final SubscribedRecord event = new SubscribedRecord(message);
         event.wrap(message.getMessage(), 0, message.getMessage().capacity());
         return event;
     }
@@ -304,7 +304,7 @@ public class ClientApiRule extends ExternalResource
     {
         return createCmdRequest()
             .partitionId(Protocol.SYSTEM_PARTITION)
-            .eventType(EventType.TOPIC_EVENT)
+            .valueType(EventType.TOPIC_EVENT)
             .command()
                 .put("state", "CREATE")
                 .put("name", name)

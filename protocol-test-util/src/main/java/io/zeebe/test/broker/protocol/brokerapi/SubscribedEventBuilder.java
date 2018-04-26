@@ -135,7 +135,7 @@ public class SubscribedEventBuilder implements BufferWriter
             .version(bodyEncoder.sbeSchemaVersion());
 
         bodyEncoder.wrap(buffer, offset + headerEncoder.encodedLength())
-            .eventType(eventType)
+            .valueType(eventType)
             .key(key)
             .position(position)
             .subscriberKey(subscriberKey)

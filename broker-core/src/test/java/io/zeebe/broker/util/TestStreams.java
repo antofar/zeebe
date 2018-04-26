@@ -44,6 +44,9 @@ import io.zeebe.logstreams.spi.SnapshotSupport;
 import io.zeebe.msgpack.UnpackedObject;
 import io.zeebe.protocol.Protocol;
 import io.zeebe.protocol.clientapi.EventType;
+import io.zeebe.protocol.clientapi.Intent;
+import io.zeebe.protocol.clientapi.RecordType;
+import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.impl.RecordMetadata;
 import io.zeebe.servicecontainer.ServiceContainer;
 import io.zeebe.test.util.AutoCloseableRule;
@@ -52,19 +55,19 @@ import io.zeebe.util.sched.*;
 
 public class TestStreams
 {
-    protected static final Map<Class<?>, EventType> EVENT_TYPES = new HashMap<>();
+    protected static final Map<Class<?>, ValueType> VALUE_TYPES = new HashMap<>();
 
     static
     {
-        EVENT_TYPES.put(DeploymentEvent.class, EventType.DEPLOYMENT_EVENT);
-        EVENT_TYPES.put(IncidentEvent.class, EventType.INCIDENT_EVENT);
-        EVENT_TYPES.put(PartitionEvent.class, EventType.PARTITION_EVENT);
-        EVENT_TYPES.put(TaskEvent.class, EventType.TASK_EVENT);
-        EVENT_TYPES.put(TopicEvent.class, EventType.TOPIC_EVENT);
-        EVENT_TYPES.put(WorkflowEvent.class, EventType.WORKFLOW_EVENT);
-        EVENT_TYPES.put(WorkflowInstanceEvent.class, EventType.WORKFLOW_INSTANCE_EVENT);
+        VALUE_TYPES.put(DeploymentEvent.class, ValueType.DEPLOYMENT);
+        VALUE_TYPES.put(IncidentEvent.class, ValueType.INCIDENT);
+        VALUE_TYPES.put(PartitionEvent.class, ValueType.PARTITION);
+        VALUE_TYPES.put(TaskEvent.class, ValueType.TASK);
+        VALUE_TYPES.put(TopicEvent.class, ValueType.TOPIC);
+        VALUE_TYPES.put(WorkflowEvent.class, ValueType.WORKFLOW);
+        VALUE_TYPES.put(WorkflowInstanceEvent.class, ValueType.WORKFLOW_INSTANCE);
 
-        EVENT_TYPES.put(UnpackedObject.class, EventType.NOOP_EVENT);
+        VALUE_TYPES.put(UnpackedObject.class, ValueType.NOOP);
     }
 
     protected final File storageDirectory;
@@ -166,7 +169,7 @@ public class TestStreams
         return StreamSupport.stream(iterable.spliterator(), false);
     }
 
-    public FluentLogWriter newEvent(String logName)
+    public FluentLogWriter newRecord(String logName)
     {
         final LogStream logStream = getLogStream(logName);
         return new FluentLogWriter(logStream);
@@ -452,6 +455,18 @@ public class TestStreams
             return this;
         }
 
+        public FluentLogWriter intent(Intent intent)
+        {
+            this.metadata.intent(intent);
+            return this;
+        }
+
+        public FluentLogWriter recordType(RecordType recordType)
+        {
+            this.metadata.recordType(recordType);
+            return this;
+        }
+
         public TestStreams.FluentLogWriter key(long key)
         {
             this.key = key;
@@ -460,7 +475,7 @@ public class TestStreams
 
         public TestStreams.FluentLogWriter event(UnpackedObject event)
         {
-            final EventType eventType = EVENT_TYPES.get(event.getClass());
+            final ValueType eventType = VALUE_TYPES.get(event.getClass());
             if (eventType == null)
             {
                 throw new RuntimeException("No event type registered for value " + event.getClass());

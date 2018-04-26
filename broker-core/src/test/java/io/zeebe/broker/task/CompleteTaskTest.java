@@ -32,7 +32,7 @@ import io.zeebe.broker.test.EmbeddedBrokerRule;
 import io.zeebe.protocol.clientapi.ControlMessageType;
 import io.zeebe.test.broker.protocol.clientapi.ClientApiRule;
 import io.zeebe.test.broker.protocol.clientapi.ExecuteCommandResponse;
-import io.zeebe.test.broker.protocol.clientapi.SubscribedEvent;
+import io.zeebe.test.broker.protocol.clientapi.SubscribedRecord;
 
 public class CompleteTaskTest
 {
@@ -52,13 +52,13 @@ public class CompleteTaskTest
 
         apiRule.openTaskSubscription(TASK_TYPE).await();
 
-        final SubscribedEvent subscribedEvent = receiveSingleSubscribedEvent();
+        final SubscribedRecord subscribedEvent = receiveSingleSubscribedEvent();
 
         // when
-        final ExecuteCommandResponse response = completeTask(subscribedEvent.key(), subscribedEvent.event());
+        final ExecuteCommandResponse response = completeTask(subscribedEvent.key(), subscribedEvent.value());
 
         // then
-        final Map<String, Object> expectedEvent = new HashMap<>(subscribedEvent.event());
+        final Map<String, Object> expectedEvent = new HashMap<>(subscribedEvent.value());
         expectedEvent.put("state", "COMPLETED");
 
         assertThat(response.getEvent()).containsAllEntriesOf(expectedEvent);
@@ -88,9 +88,9 @@ public class CompleteTaskTest
 
         apiRule.openTaskSubscription(TASK_TYPE).await();
 
-        final SubscribedEvent subscribedEvent = receiveSingleSubscribedEvent();
+        final SubscribedRecord subscribedEvent = receiveSingleSubscribedEvent();
 
-        final Map<String, Object> event = subscribedEvent.event();
+        final Map<String, Object> event = subscribedEvent.value();
         event.put("payload", new byte[] {1}); // positive fixnum, i.e. no object
 
         // when
@@ -108,11 +108,11 @@ public class CompleteTaskTest
 
         apiRule.openTaskSubscription(TASK_TYPE).await();
 
-        final SubscribedEvent subscribedEvent = receiveSingleSubscribedEvent();
-        completeTask(subscribedEvent.key(), subscribedEvent.event());
+        final SubscribedRecord subscribedEvent = receiveSingleSubscribedEvent();
+        completeTask(subscribedEvent.key(), subscribedEvent.value());
 
         // when
-        final ExecuteCommandResponse response = completeTask(subscribedEvent.key(), subscribedEvent.event());
+        final ExecuteCommandResponse response = completeTask(subscribedEvent.key(), subscribedEvent.value());
 
         // then
         assertThat(response.getEvent()).containsEntry("state", "COMPLETE_REJECTED");
@@ -150,8 +150,8 @@ public class CompleteTaskTest
                 .done()
             .sendAndAwait();
 
-        final SubscribedEvent subscribedEvent = receiveSingleSubscribedEvent();
-        final Map<String, Object> event = subscribedEvent.event();
+        final SubscribedRecord subscribedEvent = receiveSingleSubscribedEvent();
+        final Map<String, Object> event = subscribedEvent.value();
         event.put("lockOwner", "ms piggy");
 
         // when
@@ -165,7 +165,7 @@ public class CompleteTaskTest
     private ExecuteCommandResponse createTask(String type)
     {
         return apiRule.createCmdRequest()
-            .eventTypeTask()
+            .valueTypeTask()
             .command()
                 .put("state", "CREATE")
                 .put("type", type)
@@ -177,7 +177,7 @@ public class CompleteTaskTest
     private ExecuteCommandResponse completeTask(long key, Map<String, Object> event)
     {
         return apiRule.createCmdRequest()
-            .eventTypeTask()
+            .valueTypeTask()
             .key(key)
             .command()
                 .putAll(event)
@@ -186,7 +186,7 @@ public class CompleteTaskTest
             .sendAndAwait();
     }
 
-    private SubscribedEvent receiveSingleSubscribedEvent()
+    private SubscribedRecord receiveSingleSubscribedEvent()
     {
         waitUntil(() -> apiRule.numSubscribedEventsAvailable() == 1);
         return apiRule.subscribedEvents().findFirst().get();

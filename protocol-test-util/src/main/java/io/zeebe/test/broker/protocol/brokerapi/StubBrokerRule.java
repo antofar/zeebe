@@ -315,7 +315,7 @@ public class StubBrokerRule extends ExternalResource
         onExecuteCommandRequest(EventType.SUBSCRIBER_EVENT, "SUBSCRIBE")
             .respondWith()
             .key((r) -> subscriberKeyProvider.getAndIncrement())
-            .event()
+            .value()
                 .allOf((r) -> r.getCommand())
                 .put("state", "SUBSCRIBED")
                 .done()
@@ -332,7 +332,7 @@ public class StubBrokerRule extends ExternalResource
             .respondWith()
             .key((r) -> subscriptionKeyProvider.getAndIncrement())
             .partitionId((r) -> r.partitionId())
-            .event()
+            .value()
                 .allOf((r) -> r.getCommand())
                 .put("state", "ACKNOWLEDGED")
                 .done()
@@ -377,10 +377,10 @@ public class StubBrokerRule extends ExternalResource
             .partitionId(TEST_PARTITION_ID)
             .key(key)
             .position(position)
-            .eventType(eventType)
+            .valueType(eventType)
             .subscriberKey(subscriberKey)
             .subscriptionType(SubscriptionType.TOPIC_SUBSCRIPTION)
-            .event()
+            .value()
                 .done()
             .push(remote);
     }
@@ -394,7 +394,7 @@ public class StubBrokerRule extends ExternalResource
         builder.partitionId(1);
         builder.key(0);
         builder.position(0);
-        builder.eventType(EventType.RAFT_EVENT);
+        builder.valueType(EventType.RAFT_EVENT);
         builder.subscriberKey(0);
         builder.partitionId(TEST_PARTITION_ID);
         builder.event().done();
@@ -411,10 +411,10 @@ public class StubBrokerRule extends ExternalResource
             .partitionId(TEST_PARTITION_ID)
             .key(key)
             .position(position)
-            .eventType(EventType.TASK_EVENT)
+            .valueType(EventType.TASK_EVENT)
             .subscriberKey(subscriberKey)
             .subscriptionType(SubscriptionType.TASK_SUBSCRIPTION)
-            .event()
+            .value()
                 .put("type", taskType)
                 .put("lockTime", 1000L)
                 .put("lockOwner", lockOwner)

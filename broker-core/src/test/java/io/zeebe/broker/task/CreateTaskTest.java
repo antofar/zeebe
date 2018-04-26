@@ -43,7 +43,7 @@ public class CreateTaskTest
     {
         // when
         final ExecuteCommandResponse resp = apiRule.createCmdRequest()
-            .eventTypeTask()
+            .valueTypeTask()
             .command()
                 .put("state", "CREATE")
                 .put("type", "theTaskType")
