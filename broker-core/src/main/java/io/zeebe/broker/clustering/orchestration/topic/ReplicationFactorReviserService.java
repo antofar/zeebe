@@ -86,7 +86,7 @@ public class ReplicationFactorReviserService extends Actor implements Service<Re
     @Override
     public String getName()
     {
-        return "create-topic";
+        return "replication-reviser";
     }
 
     @Override
@@ -101,6 +101,7 @@ public class ReplicationFactorReviserService extends Actor implements Service<Re
 
         actor.runOnCompletion(stateFuture, (desiredState, error) ->
         {
+            LOG.debug("Revising replication factor {}", desiredState);
             if (error == null)
             {
                 checkDesiredState(desiredState);

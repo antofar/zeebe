@@ -24,16 +24,16 @@ public class TopicEventImpl extends EventImpl
 {
     protected final String name;
     protected final int partitions;
+    protected final int replicationFactor;
 
     @JsonCreator
-    public TopicEventImpl(
-            @JsonProperty("state") String state,
-            @JsonProperty("name") String name,
-            @JsonProperty("partitions") int partitions)
+    public TopicEventImpl(@JsonProperty("state") String state, @JsonProperty("name") String name, @JsonProperty("partitions") int partitions,
+        @JsonProperty("replicationFactor") int replicationFactor)
     {
         super(TopicEventType.TOPIC, state);
         this.name = name;
         this.partitions = partitions;
+        this.replicationFactor = replicationFactor;
     }
 
     public String getName()
@@ -46,4 +46,8 @@ public class TopicEventImpl extends EventImpl
         return partitions;
     }
 
+    public int getReplicationFactor()
+    {
+        return replicationFactor;
+    }
 }

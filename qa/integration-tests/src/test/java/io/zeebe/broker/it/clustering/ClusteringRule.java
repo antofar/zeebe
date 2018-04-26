@@ -145,8 +145,13 @@ public class ClusteringRule extends ExternalResource
      */
     public Topic createTopic(String topicName, int partitionCount)
     {
+       return createTopic(topicName, partitionCount, 1);
+    }
+
+    public Topic createTopic(String topicName, int partitionCount, int replicationFactor)
+    {
         final Event topicEvent = zeebeClient.topics()
-                                         .create(topicName, partitionCount)
+                                         .create(topicName, partitionCount, replicationFactor)
                                          .execute();
         assertThat(topicEvent.getState()).isEqualTo("CREATING");
 
