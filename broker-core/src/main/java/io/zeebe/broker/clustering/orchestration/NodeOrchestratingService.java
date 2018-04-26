@@ -27,6 +27,7 @@ import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
 import org.slf4j.Logger;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -36,6 +37,7 @@ import java.util.stream.Collectors;
 public class NodeOrchestratingService extends Actor implements Service<NodeOrchestratingService>, TopologyMemberListener, TopologyPartitionListener
 {
     private static final Logger LOG = Loggers.ORCHESTRATION_LOGGER;
+    public static final Duration NODE_PENDING_TIMEOUT = Duration.ofMinutes(2);
 
     private final Injector<TopologyManager> topologyManagerInjector = new Injector<>();
 
@@ -111,7 +113,7 @@ public class NodeOrchestratingService extends Actor implements Service<NodeOrche
         final CompletableActorFuture<NodeInfo> nextAddressFuture = new CompletableActorFuture<>();
         actor.run(() ->
         {
-            NodeLoad nextNode = null;
+            final NodeLoad nextNode;
             if (except == null || except.isEmpty())
             {
                 nextNode = loads.get(0);
@@ -122,14 +124,12 @@ public class NodeOrchestratingService extends Actor implements Service<NodeOrche
                     .filter(nodeLoad -> !except.contains(nodeLoad.getNodeInfo()))
                     .min(this::loadComparator);
 
-                if (nextOptional.isPresent())
-                {
-                    nextNode = nextOptional.get();
-                }
+                nextNode = nextOptional.isPresent() ? nextOptional.get() : null;
             }
 
             if (nextNode != null)
             {
+                actor.runDelayed(NODE_PENDING_TIMEOUT, () -> nextNode.removePending(forPartitionInfo));
                 nextNode.addPendingPartiton(forPartitionInfo);
                 nextAddressFuture.complete(nextNode.getNodeInfo());
             }
