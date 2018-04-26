@@ -180,6 +180,7 @@ public class ReplicationFactorReviserService extends Actor implements Service<Re
     {
         final PartitionInfo partitionInfo = partitionNodes.getPartitionInfo();
         final List<SocketAddress> members = partitionNodes.getNodes().stream()
+                                                          .filter(n -> n.getReplicationApiAddress() != null)
                                                           .map(NodeInfo::getReplicationApiAddress)
                                                           .collect(Collectors.toList());
 

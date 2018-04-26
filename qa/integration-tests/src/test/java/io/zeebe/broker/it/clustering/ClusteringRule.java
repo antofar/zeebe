@@ -37,7 +37,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class ClusteringRule extends ExternalResource
 {
-    public static final int DEFAULT_REPLICATION_FACTOR = 1;
+    public static final int SYSTEM_TOPIC_REPLICATION_FACTOR = 1;
 
     public static final String BROKER_1_TOML = "zeebe.cluster.1.cfg.toml";
     public static final SocketAddress BROKER_1_CLIENT_ADDRESS = new SocketAddress("localhost", 51015);
@@ -50,14 +50,13 @@ public class ClusteringRule extends ExternalResource
 
     private SocketAddress[] brokerAddresses = new SocketAddress[]{BROKER_1_CLIENT_ADDRESS, BROKER_2_CLIENT_ADDRESS, BROKER_3_CLIENT_ADDRESS};
     private String[] brokerConfigs = new String[]{BROKER_1_TOML, BROKER_2_TOML, BROKER_3_TOML};
-    private final int spreadCount = brokerAddresses.length * 2;
+    private final int spreadCount = brokerAddresses.length * 6;
 
     // rules
     private final AutoCloseableRule autoCloseableRule;
     private final ClientRule clientRule;
 
     // interal
-    private int replicationFactor = DEFAULT_REPLICATION_FACTOR;
     private ZeebeClient zeebeClient;
     protected final Map<SocketAddress, Broker> brokers = new HashMap<>();
 
@@ -84,7 +83,7 @@ public class ClusteringRule extends ExternalResource
             brokers.put(brokerAddresses[i], startBroker(brokerConfigs[i]));
         }
 
-        waitForInternalSystemAndReplicationFactor(1);
+        waitForInternalSystemAndReplicationFactor();
 
         waitUntilBrokersInTopology(3);
     }
@@ -97,9 +96,9 @@ public class ClusteringRule extends ExternalResource
         });
     }
 
-    private void waitForInternalSystemAndReplicationFactor(int replicationFactor)
+    private void waitForInternalSystemAndReplicationFactor()
     {
-        waitForTopicPartitionReplicationFactor("internal-system", 1, replicationFactor);
+        waitForTopicPartitionReplicationFactor("internal-system", 1, SYSTEM_TOPIC_REPLICATION_FACTOR);
     }
 
     /**
@@ -136,16 +135,15 @@ public class ClusteringRule extends ExternalResource
      * and the replication factor was reached for each partition.
      * Besides that the topic request needs to be return the created topic.
      *
-     * The replication factor is per default {@link #DEFAULT_REPLICATION_FACTOR}, but can be modified with
-     * {@link #setReplicationFactor(int)}.
+     * The replication factor is per default the number of current brokers in the cluster, see {@link #getReplicationFactor()}.
      *
-     * @param topicName
-     * @param partitionCount
-     * @return
+     * @param topicName the name of the topic to create
+     * @param partitionCount to number of partitions for the new topic
+     * @return the created topic
      */
     public Topic createTopic(String topicName, int partitionCount)
     {
-       return createTopic(topicName, partitionCount, 1);
+       return createTopic(topicName, partitionCount, getReplicationFactor());
     }
 
     public Topic createTopic(String topicName, int partitionCount, int replicationFactor)
@@ -165,7 +163,7 @@ public class ClusteringRule extends ExternalResource
         final Map<Integer, List<BrokerPartitionState>> brokersPerPartition = brokers.stream()
                 .flatMap(b -> b.getPartitions().stream())
                 .filter(p -> topicName.equals(p.getTopicName()))
-                .collect(Collectors.groupingBy(p -> p.getPartitionId()));
+                .collect(Collectors.groupingBy(BrokerPartitionState::getPartitionId));
 
         if (brokersPerPartition.size() == partitionCount)
         {
@@ -229,7 +227,7 @@ public class ClusteringRule extends ExternalResource
             {
                 brokers.put(socketAddress, startBroker(brokerConfigs[i]));
 
-                waitForInternalSystemAndReplicationFactor(replicationFactor);
+                waitForInternalSystemAndReplicationFactor();
                 break;
             }
         }
@@ -377,8 +375,8 @@ public class ClusteringRule extends ExternalResource
         return value;
     }
 
-    public void setReplicationFactor(int replicationFactor)
+    public int getReplicationFactor()
     {
-        this.replicationFactor = replicationFactor;
+        return brokers.size();
     }
 }

@@ -54,8 +54,11 @@ public class PartitionNodes
         {
             nodes.remove(leader);
         }
-        this.leader = newLeader;
-        nodes.add(newLeader);
+        if (newLeader != null)
+        {
+            this.leader = newLeader;
+            nodes.add(newLeader);
+        }
     }
 
     public List<NodeInfo> getNodes()

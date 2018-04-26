@@ -120,7 +120,7 @@ public class CreateTopicClusteredTest
     {
         // given
         final int partitionsCount = 1;
-        clusteringRule.createTopic("foo", partitionsCount, 3);
+        clusteringRule.createTopic("foo", partitionsCount);
         final TaskEvent taskEvent = client.tasks().create("foo", "bar").execute();
         final int partitionId = taskEvent.getMetadata().getPartitionId();
 
