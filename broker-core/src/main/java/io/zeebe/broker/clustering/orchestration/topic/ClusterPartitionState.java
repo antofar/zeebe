@@ -8,23 +8,27 @@ import org.agrona.DirectBuffer;
 
 public class ClusterPartitionState
 {
-
-    final Map<DirectBuffer, List<PartitionInfo>> state = new HashMap<>();
+    final Map<DirectBuffer, List<PartitionNodes>> state = new HashMap<>();
 
     public static ClusterPartitionState computeCurrentState(final ReadableTopology topology)
     {
         final ClusterPartitionState currentState = new ClusterPartitionState();
-        topology.getPartitions().forEach(currentState::addPartition);
+        topology.getPartitions().forEach(partition -> currentState.addPartition(partition, topology));
         return currentState;
     }
 
-    public void addPartition(final PartitionInfo partitionInfo)
+    public void addPartition(final PartitionInfo partitionInfo, final ReadableTopology topology)
     {
-        state.computeIfAbsent(partitionInfo.getTopicName(), t -> new ArrayList<>())
-             .add(partitionInfo);
+        final List<PartitionNodes> listOfPartitionNodes = state.computeIfAbsent(partitionInfo.getTopicName(), t -> new ArrayList<>());
+
+        final PartitionNodes newPartitionNodes = new PartitionNodes(partitionInfo);
+        newPartitionNodes.setLeader(topology.getLeader(partitionInfo.getPartitionId()));
+        newPartitionNodes.addFollowers(topology.getFollowers(partitionInfo.getPartitionId()));
+
+        listOfPartitionNodes.add(newPartitionNodes);
     }
 
-    public List<PartitionInfo> getPartitions(final DirectBuffer topicName)
+    public List<PartitionNodes> getPartitions(final DirectBuffer topicName)
     {
         return state.getOrDefault(topicName, Collections.emptyList());
     }

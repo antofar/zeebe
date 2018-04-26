@@ -20,6 +20,7 @@ package io.zeebe.broker.clustering.orchestration.topic;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.api.CreatePartitionRequest;
@@ -145,14 +146,14 @@ public class TopicCreationReviserService extends Actor implements Service<TopicC
         {
             final TopicInfo desiredTopic = desiredEntry.getValue();
 
-            final List<PartitionInfo> partitionInfos = currentState.getPartitions(desiredTopic.getTopicNameBuffer());
-            final int missingPartitions = desiredTopic.getPartitionCount() - partitionInfos.size();
+            final List<PartitionNodes> listOfPartitionNodes = currentState.getPartitions(desiredTopic.getTopicNameBuffer());
+            final int missingPartitions = desiredTopic.getPartitionCount() - listOfPartitionNodes.size();
             if (missingPartitions > 0)
             {
                 LOG.debug("Creating {} partitions for topic {}", missingPartitions, desiredTopic.getTopicName());
                 for (int i = 0; i < missingPartitions; i++)
                 {
-                    createPartition(desiredTopic);
+                    createPartition(desiredTopic, listOfPartitionNodes);
                 }
             }
             else
@@ -161,21 +162,21 @@ public class TopicCreationReviserService extends Actor implements Service<TopicC
 
                 final TypedEvent<TopicEvent> readEvent = streamReader.readValue(desiredTopic.getCreateEventPosition(), TopicEvent.class);
                 final TopicEvent topicEvent = readEvent.getValue();
-                partitionInfos.forEach(info -> topicEvent.getPartitionIds().add().setValue(info.getPartitionId()));
+                listOfPartitionNodes.forEach(partitionNodes -> topicEvent.getPartitionIds().add().setValue(partitionNodes.getPartitionId()));
                 topicEvent.setState(TopicState.CREATED);
                 streamWriter.writeFollowupEvent(readEvent.getKey(), topicEvent);
             }
         }
     }
 
-    private void createPartition(final TopicInfo topicInfo)
+    private void createPartition(final TopicInfo topicInfo, List<PartitionNodes> listOfPartitionNodes)
     {
         final ActorFuture<Integer> idFuture = idGenerator.nextId();
         actor.runOnCompletion(idFuture, (id, error) -> {
             if (error == null)
             {
                 LOG.debug("Creating partition with id {} for topic {}", id, topicInfo.getTopicName());
-                sendCreatePartitionRequest(topicInfo, id);
+                sendCreatePartitionRequest(topicInfo, id, listOfPartitionNodes);
             }
             else
             {
@@ -184,9 +185,11 @@ public class TopicCreationReviserService extends Actor implements Service<TopicC
         });
     }
 
-    private void sendCreatePartitionRequest(final TopicInfo topicInfo, final Integer partitionId)
+    private void sendCreatePartitionRequest(final TopicInfo topicInfo, final Integer partitionId, List<PartitionNodes> listOfPartitionNodes)
     {
-        final ActorFuture<NodeInfo> nextSocketAddressFuture = nodeOrchestratingService.getNextSocketAddress(null);
+        final List<NodeInfo> nodeList = listOfPartitionNodes.stream().flatMap(partitionNodes -> partitionNodes.getNodes().stream()).collect(Collectors.toList());
+
+        final ActorFuture<NodeInfo> nextSocketAddressFuture = nodeOrchestratingService.getNextSocketAddress(nodeList);
 
         actor.runOnCompletion(nextSocketAddressFuture, (nodeInfo, error) ->
         {
