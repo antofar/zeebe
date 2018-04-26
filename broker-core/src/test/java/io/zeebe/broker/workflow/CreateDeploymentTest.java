@@ -360,7 +360,7 @@ public class CreateDeploymentTest
         final int partitions = 3;
 
         apiRule.createTopic("test", partitions);
-        final List<Integer> partitionIds = apiRule.getPartitionIds("test");
+        final List<Integer> partitionIds = apiRule.getPartitionsFromTopology("test");
 
         // when
         apiRule.topic().deploy("test", WORKFLOW);

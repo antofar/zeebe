@@ -16,12 +16,10 @@
 package io.zeebe.test.broker.protocol.clientapi;
 
 import static io.zeebe.test.util.TestUtil.doRepeatedly;
+import static io.zeebe.test.util.TestUtil.waitUntil;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.zeebe.dispatcher.Dispatcher;
@@ -103,7 +101,7 @@ public class ClientApiRule extends ExternalResource
 
         msgPackHelper = new MsgPackHelper();
         streamAddress = transport.registerRemoteAddress(brokerAddress);
-        doRepeatedly(() -> getPartitionIds(Protocol.SYSTEM_TOPIC)).until(l -> l != null, e -> e == null);
+        doRepeatedly(() -> getPartitionsFromTopology(Protocol.SYSTEM_TOPIC)).until(l -> l != null, e -> e == null);
 
         if (createDefaultTopic)
         {
@@ -302,7 +300,7 @@ public class ClientApiRule extends ExternalResource
 
     public ExecuteCommandResponse createTopic(String name, int partitions)
     {
-        return createCmdRequest()
+        final ExecuteCommandResponse response = createCmdRequest()
             .partitionId(Protocol.SYSTEM_PARTITION)
             .eventType(EventType.TOPIC_EVENT)
             .command()
@@ -311,10 +309,32 @@ public class ClientApiRule extends ExternalResource
                 .put("partitions", partitions)
                 .done()
             .sendAndAwait();
+
+        waitUntil(() -> getPartitionIds(name).size() >= partitions);
+
+        return response;
     }
 
     @SuppressWarnings("unchecked")
     public List<Integer> getPartitionIds(String topicName)
+    {
+        final ControlMessageResponse response = createControlMessageRequest()
+            .partitionId(Protocol.SYSTEM_PARTITION)
+            .messageType(ControlMessageType.REQUEST_PARTITIONS)
+            .data().done()
+            .sendAndAwait();
+
+        final Map<String, Object> data = response.getData();
+        final List<Map<String, Object>> partitions = (List<Map<String, Object>>) data.get("partitions");
+
+        return partitions.stream()
+                         .filter(p -> topicName.equals(p.get("topic")))
+                         .map(p -> (Integer) p.get("id"))
+                         .collect(Collectors.toList());
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<Integer> getPartitionsFromTopology(String topicName)
     {
         final ControlMessageResponse response = createControlMessageRequest()
             .messageType(ControlMessageType.REQUEST_TOPOLOGY)
@@ -341,7 +361,7 @@ public class ClientApiRule extends ExternalResource
 
     public int getSinglePartitionId(String topicName)
     {
-        final List<Integer> partitionIds = getPartitionIds(topicName);
+        final List<Integer> partitionIds = getPartitionsFromTopology(topicName);
         if (partitionIds.size() != 1)
         {
             throw new RuntimeException("There are " + partitionIds.size() + " partitions of topic " + topicName);
