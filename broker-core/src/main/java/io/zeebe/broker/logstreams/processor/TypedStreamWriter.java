@@ -35,6 +35,7 @@ public interface TypedStreamWriter
 
     // TODO: die benennung followUp vs new war vorher ganz nett; dadurch war der Code klarer
     long writeEvent(Intent intent, UnpackedObject value);
+    // TODO: für follow-up-Events könnte man hier auch TypedEvent nehmen (falls das in der Benutzung immer möglich ist)
     long writeEvent(long key, Intent intent, UnpackedObject value);
     long writeEvent(long key, Intent intent, UnpackedObject value, Consumer<RecordMetadata> metadata);
 //

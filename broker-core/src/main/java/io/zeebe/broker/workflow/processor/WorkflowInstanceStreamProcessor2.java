@@ -1170,6 +1170,7 @@ public class WorkflowInstanceStreamProcessor2 implements StreamProcessor
     private final class CancelWorkflowInstanceProcessor implements TypedRecordProcessor<WorkflowInstanceEvent>
     {
         private final WorkflowInstanceEvent activityInstanceEvent = new WorkflowInstanceEvent();
+        private final TaskEvent taskEvent = new TaskEvent();
 
         private boolean isCanceled;
         private long activityInstanceKey;
@@ -1201,9 +1202,7 @@ public class WorkflowInstanceStreamProcessor2 implements StreamProcessor
                 final TypedRecord<WorkflowInstanceEvent> workflowInstanceEvent =
                         reader.readValue(workflowInstance.getPosition(), WorkflowInstanceEvent.class);
 
-                workflowInstanceEvent
-                    .setState(WorkflowInstanceState.WORKFLOW_INSTANCE_CANCELED)
-                    .setPayload(WorkflowInstanceEvent.NO_PAYLOAD);
+                workflowInstanceEvent.getValue().setPayload(WorkflowInstanceEvent.NO_PAYLOAD);
 
                 activityInstanceKey = workflowInstance.getActivityInstanceKey();
                 taskKey = activityInstanceMap.wrapActivityInstanceKey(activityInstanceKey).getTaskKey();
@@ -1215,7 +1214,39 @@ public class WorkflowInstanceStreamProcessor2 implements StreamProcessor
         {
             if (isCanceled)
             {
+                final WorkflowInstanceEvent workflowInstanceEvent = record.getValue();
+                activityInstanceMap.wrapActivityInstanceKey(activityInstanceKey);
 
+                final TypedBatchWriter batchWriter = writer.newBatch();
+
+                if (taskKey > 0)
+                {
+                    taskEvent.reset();
+                    taskEvent
+                        .setType(EMPTY_TASK_TYPE)
+                        .headers()
+                            .setBpmnProcessId(workflowInstanceEvent.getBpmnProcessId())
+                            .setWorkflowDefinitionVersion(workflowInstanceEvent.getVersion())
+                            .setWorkflowInstanceKey(record.getKey())
+                            .setActivityId(activityInstanceMap.getActivityId())
+                            .setActivityInstanceKey(activityInstanceKey);
+
+                    batchWriter.addCommand(taskKey, Intent.CANCEL, taskEvent);
+                }
+
+                if (activityInstanceKey > 0)
+                {
+                    activityInstanceEvent.reset();
+                    activityInstanceEvent
+                        .setBpmnProcessId(workflowInstanceEvent.getBpmnProcessId())
+                        .setVersion(workflowInstanceEvent.getVersion())
+                        .setWorkflowInstanceKey(eventKey)
+                        .setActivityId(activityInstanceMap.getActivityId());
+
+                    batchWriter.addEvent(activityInstanceKey, Intent.ACTIVITY_TERMINATED, activityInstanceEvent);
+                }
+
+                batchWriter.addEvent(record.getKey(), Intent.CANCELED, workflowInstanceEvent);
             }
             else
             {
@@ -1224,190 +1255,124 @@ public class WorkflowInstanceStreamProcessor2 implements StreamProcessor
         }
 
         @Override
-        public long writeEvent(LogStreamWriter writer)
-        {
-            logStreamBatchWriter
-                .producerId(streamProcessorId)
-                .sourceEvent(logStreamPartitionId, eventPosition);
-
-            if (taskKey > 0)
-            {
-                writeCancelTaskEvent(logStreamBatchWriter.event(), taskKey);
-            }
-
-            if (activityInstanceKey > 0)
-            {
-                writeTerminateActivityInstanceEvent(logStreamBatchWriter.event(), activityInstanceKey);
-            }
-
-            writeWorklowInstanceEvent(logStreamBatchWriter.event());
-
-            return logStreamBatchWriter.tryWrite();
-        }
-
-        private void writeWorklowInstanceEvent(LogEntryBuilder logEntryBuilder)
-        {
-            targetEventMetadata.reset();
-            targetEventMetadata
-                    .protocolVersion(Protocol.PROTOCOL_VERSION)
-                    .valueType(WORKFLOW_INSTANCE_EVENT);
-
-            logEntryBuilder
-                .key(eventKey)
-                .metadataWriter(targetEventMetadata)
-                .valueWriter(workflowInstanceEvent)
-                .done();
-        }
-
-        private void writeCancelTaskEvent(LogEntryBuilder logEntryBuilder, long taskKey)
-        {
-            targetEventMetadata.reset();
-            targetEventMetadata
-                .protocolVersion(Protocol.PROTOCOL_VERSION)
-                .valueType(TASK_EVENT);
-
-            taskEvent.reset();
-            taskEvent
-                .setState(TaskState.CANCEL)
-                .setType(EMPTY_TASK_TYPE)
-                .headers()
-                    .setBpmnProcessId(workflowInstanceEvent.getBpmnProcessId())
-                    .setWorkflowDefinitionVersion(workflowInstanceEvent.getVersion())
-                    .setWorkflowInstanceKey(eventKey)
-                    .setActivityId(activityInstanceMap.getActivityId())
-                    .setActivityInstanceKey(activityInstanceKey);
-
-            logEntryBuilder
-                .key(taskKey)
-                .metadataWriter(targetEventMetadata)
-                .valueWriter(taskEvent)
-                .done();
-        }
-
-        private void writeTerminateActivityInstanceEvent(LogEntryBuilder logEntryBuilder, long activityInstanceKey)
-        {
-            targetEventMetadata.reset();
-            targetEventMetadata
-                    .protocolVersion(Protocol.PROTOCOL_VERSION)
-                    .valueType(WORKFLOW_INSTANCE_EVENT);
-
-            activityInstanceEvent.reset();
-            activityInstanceEvent
-                .setState(WorkflowInstanceState.ACTIVITY_TERMINATED)
-                .setBpmnProcessId(workflowInstanceEvent.getBpmnProcessId())
-                .setVersion(workflowInstanceEvent.getVersion())
-                .setWorkflowInstanceKey(eventKey)
-                .setActivityId(activityInstanceMap.getActivityId());
-
-            logEntryBuilder
-                .key(activityInstanceKey)
-                .metadataWriter(targetEventMetadata)
-                .valueWriter(activityInstanceEvent)
-                .done();
-        }
-
-        @Override
-        public boolean executeSideEffects()
-        {
-            return sendWorkflowInstanceResponse();
-        }
-
-        @Override
-        public void updateState()
+        public boolean executeSideEffects(TypedRecord<WorkflowInstanceEvent> record, TypedResponseWriter responseWriter)
         {
             if (isCanceled)
             {
-                workflowInstanceIndex.remove(eventKey);
-                payloadCache.remove(eventKey);
+                return responseWriter.writeEvent(Intent.CANCELED, record);
+            }
+            else
+            {
+                return responseWriter.writeRejection(record);
+            }
+        }
+
+        @Override
+        public void updateState(TypedRecord<WorkflowInstanceEvent> record)
+        {
+            if (isCanceled)
+            {
+                workflowInstanceIndex.remove(record.getKey());
+                payloadCache.remove(record.getKey());
                 activityInstanceMap.remove(activityInstanceKey);
             }
         }
     }
 
-    private final class UpdatePayloadProcessor implements EventProcessor
+    private final class UpdatePayloadProcessor implements TypedRecordProcessor<WorkflowInstanceEvent>
     {
         private boolean isUpdated;
 
         @Override
-        public void processEvent()
+        public void processRecord(TypedRecord<WorkflowInstanceEvent> record)
         {
-            isUpdated = false;
+            final WorkflowInstanceEvent workflowInstanceEvent = record.getValue();
 
             final WorkflowInstance workflowInstance = workflowInstanceIndex.get(workflowInstanceEvent.getWorkflowInstanceKey());
             final boolean isActive = workflowInstance != null && workflowInstance.getTokenCount() > 0;
 
-            WorkflowInstanceState workflowInstanceEventType = WorkflowInstanceState.UPDATE_PAYLOAD_REJECTED;
-            if (isActive && isValidPayload(workflowInstanceEvent.getPayload()))
-            {
-                workflowInstanceEventType = WorkflowInstanceState.PAYLOAD_UPDATED;
-                isUpdated = true;
-            }
-            workflowInstanceEvent.setState(workflowInstanceEventType);
+            isUpdated = isActive && isValidPayload(workflowInstanceEvent.getPayload());
         }
 
         @Override
-        public boolean executeSideEffects()
-        {
-            return sendWorkflowInstanceResponse();
-        }
-
-        @Override
-        public long writeEvent(LogStreamWriter writer)
-        {
-            return writeWorkflowEvent(writer.key(eventKey));
-        }
-
-        @Override
-        public void updateState()
+        public boolean executeSideEffects(TypedRecord<WorkflowInstanceEvent> record, TypedResponseWriter responseWriter)
         {
             if (isUpdated)
             {
-                payloadCache.addPayload(workflowInstanceEvent.getWorkflowInstanceKey(), eventPosition, workflowInstanceEvent.getPayload());
+                return responseWriter.writeEvent(Intent.PAYLOAD_UPDATED, record);
+            }
+            else
+            {
+                return responseWriter.writeRejection(record);
+            }
+        }
+
+        @Override
+        public long writeRecord(TypedRecord<WorkflowInstanceEvent> record, TypedStreamWriter writer)
+        {
+            if (isUpdated)
+            {
+                return writer.writeEvent(record.getKey(), Intent.PAYLOAD_UPDATED, record.getValue());
+            }
+            else
+            {
+                return writer.writeRejection(record);
+            }
+        }
+
+        @Override
+        public void updateState(TypedRecord<WorkflowInstanceEvent> record)
+        {
+            if (isUpdated)
+            {
+                final WorkflowInstanceEvent workflowInstanceEvent = record.getValue();
+                payloadCache.addPayload(workflowInstanceEvent.getWorkflowInstanceKey(), record.getPosition(), workflowInstanceEvent.getPayload());
             }
         }
     }
 
-    private final class ActiveWorkflowInstanceProcessor implements EventProcessor
+    private final class ActiveWorkflowInstanceProcessor implements TypedRecordProcessor<WorkflowInstanceEvent>
     {
-        private final EventProcessor processor;
+        private final TypedRecordProcessor<WorkflowInstanceEvent> processor;
 
         private boolean isActive;
 
-        ActiveWorkflowInstanceProcessor(EventProcessor processor)
+        ActiveWorkflowInstanceProcessor(TypedRecordProcessor<WorkflowInstanceEvent> processor)
         {
             this.processor = processor;
         }
 
         @Override
-        public void processEvent()
+        public void processRecord(TypedRecord<WorkflowInstanceEvent> record)
         {
+            final WorkflowInstanceEvent workflowInstanceEvent = record.getValue();
             final WorkflowInstance workflowInstance = workflowInstanceIndex.get(workflowInstanceEvent.getWorkflowInstanceKey());
             isActive = workflowInstance != null && workflowInstance.getTokenCount() > 0;
 
             if (isActive)
             {
-                processor.processEvent();
+                processor.processRecord(record);
             }
         }
 
         @Override
-        public boolean executeSideEffects()
+        public boolean executeSideEffects(TypedRecord<WorkflowInstanceEvent> record, TypedResponseWriter responseWriter)
         {
-            return isActive ? processor.executeSideEffects() : true;
+            return isActive ? processor.executeSideEffects(record, responseWriter) : true;
         }
 
         @Override
-        public long writeEvent(LogStreamWriter writer)
+        public long writeRecord(TypedRecord<WorkflowInstanceEvent> record, TypedStreamWriter writer)
         {
-            return isActive ? processor.writeEvent(writer) : 0L;
+            return isActive ? processor.writeRecord(record, writer) : 0L;
         }
 
         @Override
-        public void updateState()
+        public void updateState(TypedRecord<WorkflowInstanceEvent> record)
         {
             if (isActive)
             {
-                processor.updateState();
+                processor.updateState(record);
             }
         }
     }
