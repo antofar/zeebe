@@ -35,7 +35,6 @@ import java.util.List;
 import static io.zeebe.test.util.TestUtil.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Ignore
 public class SubscriptionClusteredTest
 {
     private static final int PARTITION_COUNT = 5;

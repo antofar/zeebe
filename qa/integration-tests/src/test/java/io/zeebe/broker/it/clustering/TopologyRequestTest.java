@@ -37,7 +37,6 @@ import static io.zeebe.broker.it.clustering.ClusteringRule.BROKER_1_CLIENT_ADDRE
 import static io.zeebe.test.util.TestUtil.doRepeatedly;
 import static io.zeebe.test.util.TestUtil.waitUntil;
 
-@Ignore
 public class TopologyRequestTest
 {
 

@@ -32,7 +32,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  *
  */
-@Ignore
 public class GossipClusteringTest
 {
     private static final int PARTITION_COUNT = 5;

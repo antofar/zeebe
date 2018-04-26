@@ -38,7 +38,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static io.zeebe.test.util.TestUtil.doRepeatedly;
 import static io.zeebe.test.util.TestUtil.waitUntil;
 
-@Ignore
 public class BrokerLeaderChangeTest
 {
     public static final String TASK_TYPE = "testTask";

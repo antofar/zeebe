@@ -35,7 +35,6 @@ import org.junit.rules.Timeout;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Ignore
 public class DeploymentClusteredTest
 {
     private static final int PARTITION_COUNT = 5;
@@ -207,7 +206,6 @@ public class DeploymentClusteredTest
     }
 
     @Test
-    @Ignore("https://github.com/zeebe-io/zeebe/issues/644")
     public void shouldDeployOnTopicWithManyPartitions()
     {
         // given

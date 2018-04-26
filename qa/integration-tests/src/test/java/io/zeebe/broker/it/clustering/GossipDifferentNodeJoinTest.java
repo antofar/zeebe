@@ -30,7 +30,6 @@ import java.util.List;
 import static io.zeebe.broker.it.clustering.ClusteringRule.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Ignore
 public class GossipDifferentNodeJoinTest
 {
     public static final String BROKER_4_TOML = "zeebe.cluster.4.cfg.toml";
