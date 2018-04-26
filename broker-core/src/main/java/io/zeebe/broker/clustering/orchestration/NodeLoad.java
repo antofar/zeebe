@@ -68,6 +68,11 @@ public class NodeLoad
         return pendings.remove(partitionInfo);
     }
 
+    public boolean doesNotHave(PartitionInfo forPartitionInfo)
+    {
+        return !load.contains(forPartitionInfo) && !pendings.contains(forPartitionInfo);
+    }
+
     @Override
     public String toString()
     {

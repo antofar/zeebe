@@ -19,7 +19,6 @@ package io.zeebe.broker.clustering.orchestration.topic;
 
 import java.time.Duration;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.clustering.api.CreatePartitionRequest;
@@ -158,7 +157,7 @@ public class TopicCreationReviserService extends Actor implements Service<TopicC
                     LOG.debug("Creating {} partitions for topic {}", missingPartitions, desiredTopic.getTopicName());
                     for (int i = 0; i < missingPartitions; i++)
                     {
-                        createPartition(desiredTopic, listOfPartitionNodes);
+                        createPartition(desiredTopic);
                     }
                     pendingTopicCreation.add(desiredTopic);
                     actor.runDelayed(PENDING_TOPIC_CREATION_TIMEOUT, () -> pendingTopicCreation.remove(desiredTopic));
@@ -179,14 +178,14 @@ public class TopicCreationReviserService extends Actor implements Service<TopicC
         }
     }
 
-    private void createPartition(final TopicInfo topicInfo, List<PartitionNodes> listOfPartitionNodes)
+    private void createPartition(final TopicInfo topicInfo)
     {
         final ActorFuture<Integer> idFuture = idGenerator.nextId();
         actor.runOnCompletion(idFuture, (id, error) -> {
             if (error == null)
             {
                 LOG.debug("Creating partition with id {} for topic {}", id, topicInfo.getTopicName());
-                sendCreatePartitionRequest(topicInfo, id, listOfPartitionNodes);
+                sendCreatePartitionRequest(topicInfo, id);
             }
             else
             {
@@ -195,14 +194,10 @@ public class TopicCreationReviserService extends Actor implements Service<TopicC
         });
     }
 
-    private void sendCreatePartitionRequest(final TopicInfo topicInfo, final Integer partitionId, List<PartitionNodes> listOfPartitionNodes)
+    private void sendCreatePartitionRequest(final TopicInfo topicInfo, final Integer partitionId)
     {
-        final List<NodeInfo> nodeList = listOfPartitionNodes.stream()
-            .flatMap(partitionNodes -> partitionNodes.getNodes().stream())
-            .collect(Collectors.toList());
-
         final PartitionInfo newPartition = new PartitionInfo(topicInfo.getTopicNameBuffer(), partitionId, topicInfo.getReplicationFactor());
-        final ActorFuture<NodeInfo> nextSocketAddressFuture = nodeOrchestratingService.getNextSocketAddress(nodeList, newPartition);
+        final ActorFuture<NodeInfo> nextSocketAddressFuture = nodeOrchestratingService.getNextSocketAddress(newPartition);
         actor.runOnCompletion(nextSocketAddressFuture, (nodeInfo, error) ->
         {
             if (error == null)
