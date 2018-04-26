@@ -21,6 +21,7 @@ import static io.zeebe.test.util.TestUtil.doRepeatedly;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -91,15 +92,13 @@ public class RequestPartitionsTest
 
         // when
         // have to do this multiple times as the stream processor for answering the request may not be available yet
-        final ControlMessageResponse response = doRepeatedly(() -> apiRule.createControlMessageRequest()
-            .messageType(ControlMessageType.REQUEST_PARTITIONS)
-            .partitionId(Protocol.SYSTEM_PARTITION)
-            .sendAndAwait())
-            .until(r -> r != null);
+        apiRule.waitForTopic(topicName, numPartitions);
 
         // then
-        assertResponse(response, numPartitions, topicName);
+        assertResponse(apiRule.requestPartitions(), numPartitions, topicName);
     }
+
+
 
     @Test
     public void shouldRespondWithErrorWhenRequestAddressesNonSystemPartition()
@@ -120,31 +119,16 @@ public class RequestPartitionsTest
         assertThat(errorResponse.getErrorData()).isEqualTo("Partitions request must address the system partition " + Protocol.SYSTEM_PARTITION);
     }
 
-    @Test
-    public void shouldRespondWithNoPartition()
-    {
-        // when
-        final ControlMessageResponse response = doRepeatedly(() -> apiRule.createControlMessageRequest()
-            .messageType(ControlMessageType.REQUEST_PARTITIONS)
-            .partitionId(Protocol.SYSTEM_PARTITION)
-            .sendAndAwait())
-            .until(r -> r != null);
-
-        // then
-        assertResponse(response, 0);
-    }
-
     private void assertResponse(final ControlMessageResponse response, final int expectedTotalPartitions, final String... expectedTopics)
     {
         final Map<String, Object> responseData = response.getData();
         assertThat(responseData).hasSize(1);
         final List<Map<String, Object>> partitions = (List<Map<String, Object>>) responseData.get("partitions");
         assertThat(partitions).isNotNull();
-        assertThat(partitions).hasSize(expectedTotalPartitions); // system partition not included
-        assertThat(partitions).extracting("topic").containsOnly((Object[]) expectedTopics);
+        assertThat(partitions.size()).isGreaterThanOrEqualTo(expectedTotalPartitions); // system partition included
+        assertThat(partitions).extracting("topic").contains((Object[]) expectedTopics);
         assertThat(partitions).extracting("id")
-            .doesNotHaveDuplicates()
-            .doesNotContain(Protocol.SYSTEM_PARTITION);
+            .doesNotHaveDuplicates();
     }
 
 }

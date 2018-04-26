@@ -137,6 +137,10 @@ public class CreateDeploymentStreamProcessorTest
         event.setName(BufferUtil.wrapString(name));
         event.setPartitions(partitions);
         event.setState(TopicState.CREATED);
+        for (int i = 0; i < partitions; i++)
+        {
+            event.getPartitionIds().add().setValue(i + 1);
+        }
 
         return event;
     }

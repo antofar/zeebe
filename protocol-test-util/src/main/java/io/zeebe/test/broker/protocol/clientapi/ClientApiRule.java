@@ -310,19 +310,24 @@ public class ClientApiRule extends ExternalResource
                 .done()
             .sendAndAwait();
 
-        waitUntil(() -> getPartitionIds(name).size() >= partitions);
+        if (response.getEvent().get("state").equals("CREATING"))
+        {
+            waitForTopic(name, partitions);
+        }
 
         return response;
+    }
+
+    public void waitForTopic(String name, int partitions)
+    {
+
+        waitUntil(() -> getPartitionIds(name).size() >= partitions);
     }
 
     @SuppressWarnings("unchecked")
     public List<Integer> getPartitionIds(String topicName)
     {
-        final ControlMessageResponse response = createControlMessageRequest()
-            .partitionId(Protocol.SYSTEM_PARTITION)
-            .messageType(ControlMessageType.REQUEST_PARTITIONS)
-            .data().done()
-            .sendAndAwait();
+        final ControlMessageResponse response = requestPartitions();
 
         final Map<String, Object> data = response.getData();
         final List<Map<String, Object>> partitions = (List<Map<String, Object>>) data.get("partitions");
@@ -331,6 +336,15 @@ public class ClientApiRule extends ExternalResource
                          .filter(p -> topicName.equals(p.get("topic")))
                          .map(p -> (Integer) p.get("id"))
                          .collect(Collectors.toList());
+    }
+
+    public ControlMessageResponse requestPartitions()
+    {
+        return createControlMessageRequest()
+            .partitionId(Protocol.SYSTEM_PARTITION)
+            .messageType(ControlMessageType.REQUEST_PARTITIONS)
+            .data().done()
+            .sendAndAwait();
     }
 
     @SuppressWarnings("unchecked")

@@ -58,6 +58,16 @@ public class TopicCreateProcessor implements TypedEventProcessor<TopicEvent>
             LOG.warn("Rejecting topic {} creation as a topic with the same name already exists", bufferAsString(topicName));
             topicEvent.setState(TopicState.CREATE_REJECTED);
         }
+        else if (topicEvent.getPartitions() < 1)
+        {
+            LOG.warn("Rejecting topic {} creation as a topic has to have at least one partition", bufferAsString(topicName));
+            topicEvent.setState(TopicState.CREATE_REJECTED);
+        }
+        else if (topicEvent.getReplicationFactor() < 1)
+        {
+            LOG.warn("Rejecting topic {} creation as a topic has to have at least one replication", bufferAsString(topicName));
+            topicEvent.setState(TopicState.CREATE_REJECTED);
+        }
         else
         {
             LOG.info("Creating topic {} with partition count {} and replication factor {}", bufferAsString(topicName), topicEvent.getPartitions(), topicEvent.getReplicationFactor());
