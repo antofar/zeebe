@@ -113,7 +113,7 @@ public class Topology implements ReadableTopology
     @Override
     public List<NodeInfo> getFollowers(int partitionId)
     {
-        return partitionFollowers.get(partitionId);
+        return partitionFollowers.getOrDefault(partitionId, Collections.emptyList());
     }
 
     @Override

@@ -131,6 +131,7 @@ public class NodeOrchestratingService extends Actor implements Service<NodeOrche
             {
                 actor.runDelayed(NODE_PENDING_TIMEOUT, () -> nextNode.removePending(forPartitionInfo));
                 nextNode.addPendingPartiton(forPartitionInfo);
+                Collections.sort(loads, this::loadComparator);
                 nextAddressFuture.complete(nextNode.getNodeInfo());
             }
             else
@@ -149,11 +150,8 @@ public class NodeOrchestratingService extends Actor implements Service<NodeOrche
 
     private int loadComparator(NodeLoad load1, NodeLoad load2)
     {
-        final int comparedLoad = Integer.compare(load1.getLoad().size(), load2.getLoad().size());
-        if (comparedLoad == 0)
-        {
-            return Integer.compare(load1.getPendings().size(), load2.getPendings().size());
-        }
-        return comparedLoad;
+        final int nodeLoad1 = load1.getLoad().size() + load1.getPendings().size();
+        final int nodeLoad2 = load2.getLoad().size() + load2.getPendings().size();
+        return Integer.compare(nodeLoad1, nodeLoad2);
     }
 }
